@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=device-width, initial-scale=1.0">
+    <title>Aplikasi Kasir Donat + Google Sheets</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f7f9fa;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1.2fr 0.8fr;
+            gap: 20px;
+        }
+        @media (max-width: 768px) {
+            .container { grid-template-columns: 1fr; }
+        }
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        h2 { margin-top: 0; color: #d63031; border-bottom: 2px solid #fab1a0; padding-bottom: 10px;}
+        label { font-weight: bold; display: block; margin: 10px 0 5px; }
+        select, input, button {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+        button {
+            background-color: #e84393;
+            color: white;
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover { background-color: #cc2e7a; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        table, th, td { border: 1px solid #ddd; }
+        th, td { padding: 10px; text-align: left; }
+        th { background-color: #ffeaa7; }
+        .summary-line {
+            display: flex;
+            justify-content: space-between;
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+        .total-bold { font-size: 20px; font-weight: bold; color: #d63031; }
+        .struk-output {
+            background: #f1f2f6;
+            font-family: monospace;
+            padding: 15px;
+            border-left: 4px solid #ff7675;
+            white-space: pre-wrap;
+            margin-top: 15px;
+        }
+        .btn-danger { background-color: #b2bec3; }
+        .btn-danger:hover { background-color: #636e72; }
+        .loading { background-color: #74b9ff; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+
+<center><h1>🍩 APK KASIR DONATTA🍩</h1></center>
+
+<div class="container">
+    <div class="card">
+        <h2>Input Pesanan</h2>
+        <label for="varian">Ukuran / Varian Donat:</label>
+        <select id="varian">
+            <option value="Besar" data-harga="3000">Donat Besar (Rp 3.000)</option>
+            <option value="Sedang" data-harga="2000">Donat Sedang (Rp 2.000)</option>
+        </select>
+
+        <label for="topping">Topping (Maksimal 1):</label>
+        <select id="topping">
+            <option value="Tanpa Topping" data-harga="0">Tanpa Topping (Rp 0)</option>
+            <option value="Tabur" data-harga="1000">Tabur (Rp 1.000)</option>
+            <option value="Glaze Biasa" data-harga="2000">Glaze Biasa (Rp 2.000)</option>
+            <option value="Glaze Premium" data-harga="3000">Glaze Premium (Rp 3.000)</option>
+        </select>
+
+        <label for="jumlah">Jumlah Qty:</label>
+        <input type="number" id="jumlah" value="1" min="1">
+
+        <button onclick="tambahPesanan()">+ Tambah ke Keranjang</button>
+
+        <h2>Daftar Keranjang</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Item</th>
+                    <th>Harga Satuan</th>
+                    <th>Qty</th>
+                    <th>Subtotal</th>
+                    <th>Aksi</th>
+                </tr>
+            </thead>
+            <tbody id="tabel-keranjang">
+                </tbody>
+        </table>
+        <button class="btn-danger" onclick="kosongkanKeranjang()">Kosongkan Keranjang</button>
+    </div>
+
+    <div class="card">
+        <h2>Pembayaran</h2>
+        <div class="summary-line"><span>Total Kotor:</span> <span id="txt-total-kotor">Rp 0</span></div>
+        <div class="summary-line" style="color: green; font-weight: bold;"><span>Diskon (Promo >50k, 10%):</span> <span id="txt-diskon">Rp 0</span></div>
+        <div class="summary-line total-bold"><span>Total Bersih:</span> <span id="txt-total-bersih">Rp 0</span></div>
+        
+        <label for="metode-bayar">Metode Pembayaran:</label>
+        <select id="metode-bayar" onchange="cekMetodeBayar()">
+            <option value="Tunai">Tunai / Cash</option>
+            <option value="QRIS/Transfer">QRIS / Bank Transfer</option>
+        </select>
+
+        <div id="section-tunai">
+            <label for="uang-bayar">Jumlah Uang Tunai:</label>
+            <input type="number" id="uang-bayar" placeholder="Masukkan nominal uang" oninput="hitungKembalian()">
+            <div class="summary-line" style="font-size: 18px; font-weight: bold;"><span>Kembalian:</span> <span id="txt-kembalian">Rp 0</span></div>
+        </div>
+
+        <button id="btn-selesai" style="background-color: #2ecc71;" onclick="prosesTransaksi()">Selesai & Cetak Struk</button>
+
+        <div id="struk-section" style="display:none;">
+            <h3>Pratinjau Struk:</h3>
+            <div class="struk-output" id="struk-teks"></div>
+            <button onclick="window.print()">Print / Simpan PDF</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // MASUKKAN URL GOOGLE APPS SCRIPT ANDA DI SINI
+    const SPREADSHEET_URL = "https://script.google.com/macros/s/AKfycbxW81p0um-PQwe_6oJM9LVnilveM324umptBsZvekxMr0A_yQZuPdpC3ylXPxUene3VTA/exec";
+
+    let keranjang = [];
+    let totalKotor = 0;
+    let diskon = 0;
+    let totalBersih = 0;
+    let kembalian = 0;
+
+    function tambahPesanan() {
+        const varSelect = document.getElementById('varian');
+        const topSelect = document.getElementById('topping');
+        const qty = parseInt(document.getElementById('jumlah').value);
+
+        const namaVarian = varSelect.value;
+        const hargaVarian = parseInt(varSelect.options[varSelect.selectedIndex].getAttribute('data-harga'));
+
+        const namaTopping = topSelect.value;
+        const hargaTopping = parseInt(topSelect.options[topSelect.selectedIndex].getAttribute('data-harga'));
+
+        if(qty < 1 || isNaN(qty)) {
+            alert('Jumlah item tidak valid!');
+            return;
+        }
+
+        const hargaSatuan = hargaVarian + hargaTopping;
+        const subtotal = hargaSatuan * qty;
+        const namaItem = `Donat ${namaVarian} (${namaTopping})`;
+
+        const indexSama = keranjang.findIndex(item => item.nama === namaItem);
+        if(indexSama > -1) {
+            keranjang[indexSama].qty += qty;
+            keranjang[indexSama].subtotal += subtotal;
+        } else {
+            keranjang.push({ nama: namaItem, harga: hargaSatuan, qty: qty, subtotal: subtotal });
+        }
+
+        updateTabel();
+    }
+
+    function updateTabel() {
+        const tbody = document.getElementById('tabel-keranjang');
+        tbody.innerHTML = '';
+        totalKotor = 0;
+
+        keranjang.forEach((item, index) => {
+            totalKotor += item.subtotal;
+            tbody.innerHTML += `
+                <tr>
+                    <td>${item.nama}</td>
+                    <td>Rp ${item.harga.toLocaleString('id-ID')}</td>
+                    <td>${item.qty}</td>
+                    <td>Rp ${item.subtotal.toLocaleString('id-ID')}</td>
+                    <td><button style="padding:5px; margin:0;" class="btn-danger" onclick="hapusItem(${index})">Hapus</button></td>
+                </tr>
+            `;
+        });
+
+        if (totalKotor >= 50000) {
+            diskon = totalKotor * 0.1;
+        } else {
+            diskon = 0;
+        }
+
+        totalBersih = totalKotor - diskon;
+
+        document.getElementById('txt-total-kotor').innerText = `Rp ${totalKotor.toLocaleString('id-ID')}`;
+        document.getElementById('txt-diskon').innerText = `Rp ${diskon.toLocaleString('id-ID')}`;
+        document.getElementById('txt-total-bersih').innerText = `Rp ${totalBersih.toLocaleString('id-ID')}`;
+        
+        hitungKembalian();
+    }
+
+    function hapusItem(index) {
+        keranjang.splice(index, 1);
+        updateTabel();
+    }
+
+    function kosongkanKeranjang() {
+        keranjang = [];
+        updateTabel();
+        document.getElementById('struk-section').style.display = 'none';
+    }
+
+    function cekMetodeBayar() {
+        const metode = document.getElementById('metode-bayar').value;
+        const sectionTunai = document.getElementById('section-tunai');
+        if(metode === 'QRIS/Transfer') {
+            sectionTunai.style.display = 'none';
+            document.getElementById('uang-bayar').value = totalBersih;
+        } else {
+            sectionTunai.style.display = 'block';
+            document.getElementById('uang-bayar').value = '';
+        }
+        hitungKembalian();
+    }
+
+    function hitungKembalian() {
+        const metode = document.getElementById('metode-bayar').value;
+        if(metode === 'QRIS/Transfer') {
+            document.getElementById('txt-kembalian').innerText = 'Rp 0 (Nontunai)';
+            return;
+        }
+
+        const uangBayar = parseInt(document.getElementById('uang-bayar').value) || 0;
+        kembalian = uangBayar - totalBersih;
+
+        if (kembalian < 0) {
+            document.getElementById('txt-kembalian').innerText = 'Uang Kurang!';
+        } else {
+            document.getElementById('txt-kembalian').innerText = `Rp ${kembalian.toLocaleString('id-ID')}`;
+        }
+    }
+
+    function prosesTransaksi() {
+        if(keranjang.length === 0) {
+            alert('Keranjang masih kosong!');
+            return;
+        }
+
+        const metode = document.getElementById('metode-bayar').value;
+        const uangBayar = parseInt(document.getElementById('uang-bayar').value) || 0;
+
+        if(metode === 'Tunai' && uangBayar < totalBersih) {
+            alert('Pembayaran gagal! Uang tunai kurang.');
+            return;
+        }
+
+        const btnSelesai = document.getElementById('btn-selesai');
+        btnSelesai.innerText = "Menyimpan ke Google Sheets...";
+        btnSelesai.classList.add('loading');
+        btnSelesai.disabled = true;
+
+        let tgl = new Date().toLocaleString('id-ID');
+        
+        // Menggabungkan ringkasan item menjadi teks tunggal untuk dikirim ke satu cell Sheet
+        let detailItems = keranjang.map(item => `${item.nama} x${item.qty}`).join(", ");
+
+        // Data JSON yang akan dikirim ke Google Sheets
+        let dataKeSheet = {
+            tanggal: tgl,
+            items: detailItems,
+            totalKotor: totalKotor,
+            diskon: diskon,
+            totalBersih: totalBersih,
+            metode: metode
+        };
+
+        // Menggunakan Fetch API untuk mengirim data ke Google Sheets
+        fetch(SPREADSHEET_URL, {
+            method: "POST",
+            mode: "no-cors", // Mode ini digunakan untuk menghindari error CORS lintas domain
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(dataKeSheet)
+        })
+        .then(() => {
+            // Tampilkan Struk setelah berhasil kirim data
+            let struk = `================================\n`;
+            struk += `      TOKO MAU DONATTA       \n`;
+            struk += `================================\n`;
+            struk += `Tanggal : ${tgl}\n`;
+            struk += `Metode  : ${metode}\n`;
+            struk += `Status  : Tersimpan di Cloud ✔\n`;
+            struk += `--------------------------------\n`;
+            
+            keranjang.forEach(item => {
+                struk += `${item.nama}\n`;
+                struk += `  ${item.qty} x Rp ${item.harga.toLocaleString('id-ID')} = Rp ${item.subtotal.toLocaleString('id-ID')}\n`;
+            });
+            
+            struk += `--------------------------------\n`;
+            struk += `Total Kotor : Rp ${totalKotor.toLocaleString('id-ID')}\n`;
+            struk += `Diskon (10%): Rp ${diskon.toLocaleString('id-ID')}\n`;
+            struk += `TOTAL NET   : Rp ${totalBersih.toLocaleString('id-ID')}\n`;
+            
+            if(metode === 'Tunai') {
+                struk += `Bayar Tunai : Rp ${uangBayar.toLocaleString('id-ID')}\n`;
+                struk += `Kembalian   : Rp ${kembalian.toLocaleString('id-ID')}\n`;
+            } else {
+                struk += `Bayar       : LUNAS (Nontunai)\n`;
+            }
+            
+            struk += `================================\n`;
+            struk += ` Terima Kasih & Data Tersimpan  \n`;
+
+            document.getElementById('struk-teks').innerText = struk;
+            document.getElementById('struk-section').style.display = 'block';
+            
+            // Kembalikan status tombol
+            btnSelesai.innerText = "Selesai & Cetak Struk";
+            btnSelesai.classList.remove('loading');
+            btnSelesai.disabled = false;
+        })
+        .catch(error => {
+            alert("Gagal menyimpan ke Google Sheets: " + error);
+            btnSelesai.innerText = "Selesai & Cetak Struk";
+            btnSelesai.classList.remove('loading');
+            btnSelesai.disabled = false;
+        });
+    }
+</script>
+
+</body>
+</html>
