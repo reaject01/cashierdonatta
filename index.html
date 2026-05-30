@@ -87,59 +87,56 @@
         .btn-danger:hover { background-color: #636e72; }
         .btn-logout { background-color: #d63031; margin-top: 10px;}
         .btn-logout:hover { background-color: #c0392b; }
-        .loading-overlay {
-            position: absolute; top:0; left:0; width:100%; height:100%;
-            background: rgba(255,255,255,0.9); display:flex; justify-content:center;
-            align-items:center; font-size:18px; font-weight:bold; color:#e84393;
-            z-index: 10; border-radius: 10px;
-        }
         
         /* ==================================================================== */
-        /* ATURAN FIX PRINTER THERMAL (HANYA STRUK YANG DIPRINT)                */
+        /* ATURAN FIX CETAK UKURAN KERTAS A5 (1 HALAMAN TIDAK TERPOTONG)        */
         /* ==================================================================== */
         @media print {
-            /* Sembunyikan seluruh elemen halaman web kasir */
+            /* Sembunyikan seluruh elemen visual aplikasi kasir */
             body * {
                 visibility: hidden;
             }
             
-            /* Tampilkan HANYA area teks struk */
+            /* Tampilkan HANYA kontainer teks area struk */
             #struk-section, #struk-section * {
                 visibility: visible;
             }
             
-            /* Atur posisi struk mentok di ujung kiri atas kertas roll */
+            /* Paksa posisi struk berada di area paling atas kiri kertas A5 */
             #struk-section {
                 position: absolute;
                 left: 0;
                 top: 0;
                 width: 100%;
                 margin: 0;
-                padding: 0;
+                padding: 10mm; /* Jarak aman tepi kertas A5 */
                 background: white;
+                box-sizing: border-box;
             }
             
-            /* Sembunyikan tombol print itu sendiri agar tidak ikut tercetak */
+            /* Sembunyikan judul pratinjau h3 dan tombol print internal browser */
             #struk-section button, #struk-section h3 {
                 display: none !important;
             }
             
-            /* Format font khas mesin kasir pos, hitam pekat, dan pas di kertas kecil */
+            /* Desain teks struk agar proporsional di kertas A5 dan pas 1 halaman */
             .struk-output {
                 font-family: 'Courier New', Courier, monospace;
-                font-size: 10pt; /* Ukuran teks ideal untuk printer thermal roll */
-                line-height: 1.2;
+                font-size: 12pt; /* Ukuran teks ideal dan tajam untuk format A5 */
+                line-height: 1.3;
                 white-space: pre-wrap;
                 background: transparent !important;
                 padding: 0;
                 margin: 0;
                 color: #000 !important;
+                width: 100%;
+                page-break-inside: avoid; /* Mencegah pemotongan halaman di tengah teks */
             }
             
-            /* Hilangkan header/footer bawaan browser (seperti judul & link web) */
+            /* Pengaturan dimensi kertas A5 standar internasional */
             @page {
-                size: auto;
-                margin: 0mm; 
+                size: A5; /* Otomatis mengeset layout printer ke ukuran kertas A5 */
+                margin: 0mm; /* Menghilangkan margin bawaan browser Chrome/HP */
             }
         }
     </style>
@@ -178,6 +175,9 @@
 
         <label for="jumlah">Jumlah Qty:</label>
         <input type="number" id="jumlah" value="1" min="1">
+
+        <label for="nama-pemesan">Nama Pemesan / Pelanggan:</label>
+        <input type="text" id="nama-pemesan" placeholder="Tulis nama pembeli (Misal: Budi / Meja 05)">
 
         <button onclick="tambahPesanan()">+ Tambah ke Keranjang</button>
 
@@ -219,7 +219,7 @@
             <div style="background: #f1f2f6; padding: 15px; border-left: 4px solid #ff7675; margin-top: 15px;">
                 <div class="struk-output" id="struk-teks"></div>
             </div>
-            <button onclick="window.print()" style="margin-top: 15px;">Print Struk Belanja</button>
+            <button onclick="window.print()" style="margin-top: 15px; background-color: #3498db;">Print Struk Belanja (A5)</button>
         </div>
 
         <hr style="border: 0; border-top: 1px dashed #ccc; margin: 25px 0 20px 0;">
@@ -388,7 +388,12 @@
     }
 
     function hapusItem(index) { keranjang.splice(index, 1); updateTabel(); }
-    function kosongkanKeranjang() { keranjang = []; updateTabel(); document.getElementById('struk-section').style.display = 'none'; }
+    function kosongkanKeranjang() { 
+        keranjang = []; 
+        updateTabel(); 
+        document.getElementById('nama-pemesan').value = ''; // Reset input nama
+        document.getElementById('struk-section').style.display = 'none'; 
+    }
 
     function cekMetodeBayar() {
         const metode = document.getElementById('metode-bayar').value;
@@ -418,6 +423,7 @@
         if(keranjang.length === 0) return alert('Keranjang belanja masih kosong!');
         const metode = document.getElementById('metode-bayar').value;
         const uangBayar = parseInt(document.getElementById('uang-bayar').value) || 0;
+        const namaPemesan = document.getElementById('nama-pemesan').value.trim() || "Pelanggan Umum";
 
         const namaKasir = localStorage.getItem("kasir_nama");
         const passwordKasir = localStorage.getItem("kasir_pin");
@@ -433,14 +439,16 @@
         let bulan = String(sekarang.getMonth() + 1).padStart(2, '0');
         let tahun = sekarang.getFullYear();
         let hanyaTanggal = `${tanggal}/${bulan}/${tahun}`; 
-        let hanyaWaktu = sekarang.toLocaleTimeString('id-ID');
+        let hanyaWaktu = Clinical = sekarang.toLocaleTimeString('id-ID');
         let detailItems = keranjang.map(item => `${item.nama} x${item.qty}`).join(", ");
 
+        // Data dikirim ke Google Sheets include dengan nama_pemesan
         let dataKeSheet = {
             tanggal: hanyaTanggal,
             waktu: hanyaWaktu,
             kasir: namaKasir,
             password: passwordKasir,
+            pemesan: namaPemesan, // Properti dikirim ke Backend Apps Script
             items: detailItems,
             totalKotor: totalKotor,
             diskon: diskon,
@@ -464,24 +472,25 @@
             if (res.result === "SUCCESS") {
                 let nomorAntrianServer = res.antrian;
 
-                /* Format Struk Pas Ukuran Kertas Thermal 58mm/80mm (Maks 32 karakter per baris) */
-                let struk = `================================\n`;
-                struk += `         KEDAI DONATTA          \n`;
-                struk += `================================\n`;
-                struk += `  NOMOR ANTRIAN :  [ ${nomorAntrianServer} ]  \n`;
-                struk += `================================\n`;
-                struk += `Tanggal : ${hanyaTanggal}\n`;
-                struk += `Waktu   : ${hanyaWaktu}\n`;
-                struk += `Kasir   : ${namaKasir}\n`;
-                struk += `Metode  : ${metode}\n`;
-                struk += `--------------------------------\n`;
+                /* Format Struk Diperlebar menjadi 42 karakter agar proporsional di A5 */
+                let struk = `==========================================\n`;
+                struk += `              KEDAI DONATTA               \n`;
+                struk += `==========================================\n`;
+                struk += `       NOMOR ANTRIAN :  [ ${nomorAntrianServer} ]       \n`;
+                struk += `==========================================\n`;
+                struk += `Tanggal  : ${hanyaTanggal}\n`;
+                struk += `Waktu    : ${hanyaWaktu}\n`;
+                struk += `Kasir    : ${namaKasir}\n`;
+                struk += `Pemesan  : ${namaPemesan}\n`; // Nama Pemesan Tercetak di Struk
+                struk += `Metode   : ${metode}\n`;
+                struk += `------------------------------------------\n`;
                 
                 keranjang.forEach(item => {
                     struk += `${item.nama}\n`;
                     struk += `  ${item.qty} x Rp ${item.harga.toLocaleString('id-ID')} = Rp ${item.subtotal.toLocaleString('id-ID')}\n`;
                 });
                 
-                struk += `--------------------------------\n`;
+                struk += `------------------------------------------\n`;
                 struk += `Total Kotor : Rp ${totalKotor.toLocaleString('id-ID')}\n`;
                 struk += `Diskon      : Rp ${diskon.toLocaleString('id-ID')}\n`;
                 struk += `TOTAL NET   : Rp ${totalBersih.toLocaleString('id-ID')}\n`;
@@ -492,9 +501,9 @@
                 } else {
                     struk += `Bayar       : LUNAS (${metode})\n`;
                 }
-                struk += `================================\n`;
-                struk += `  Terima Kasih Atas Kunjungan  \n`;
-                struk += `\n\n\n`; /* Jarak potong kertas thermal roll */
+                struk += `==========================================\n`;
+                struk += `     Terima Kasih Atas Kunjungan Anda     \n`;
+                struk += `==========================================\n`;
 
                 document.getElementById('struk-teks').innerText = struk;
                 document.getElementById('struk-section').style.display = 'block';
@@ -502,10 +511,7 @@
                 btnSelesai.innerText = "Selesai & Cetak Struk";
                 btnSelesai.disabled = false;
 
-                // SISTEM OTOMATIS: Langsung memicu jendela cetak printer thermal tanpa klik manual lagi
-                setTimeout(function() {
-                    window.print();
-                }, 500);
+                // PERUBAHAN: Perintah otomatis window.print() di sini telah DILAPUS agar tidak langsung mencetak otomatis.
             }
         })
         .catch(error => {
