@@ -19,6 +19,15 @@
             grid-template-columns: 1.2fr 0.8fr;
             gap: 20px;
         }
+        .login-box {
+            max-width: 400px;
+            margin: 100px auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
         @media (max-width: 768px) {
             .container { grid-template-columns: 1fr; }
         }
@@ -73,6 +82,8 @@
         }
         .btn-danger { background-color: #b2bec3; }
         .btn-danger:hover { background-color: #636e72; }
+        .btn-logout { background-color: #d63031; margin-top: 10px;}
+        .btn-logout:hover { background-color: #c0392b; }
         .loading-overlay {
             position: absolute; top:0; left:0; width:100%; height:100%;
             background: rgba(255,255,255,0.9); display:flex; justify-content:center;
@@ -83,14 +94,21 @@
 </head>
 <body>
 
-<center>
-    <img src="logo.png" alt="Logo Kedai Donatta" onerror="this.style.display='none'" style="max-height: 80px; margin-top: 10px;">
-    <h1 style="margin-top: 10px;">🍩 KASIR KEDAI DONATTA SMART SYSTEM 🍩</h1>
-</center>
+<div id="login-screen" class="login-box">
+    <h2 style="border:none; margin-bottom:20px;">🍩 LOGIN KASIR DONATTA 🍩</h2>
+    <div id="loader-login" style="color:#e84393; font-weight:bold; margin-bottom:15px;">Mengambil data kasir...</div>
+    
+    <label for="login-kasir" style="text-align:left;">Pilih Nama Anda:</label>
+    <select id="login-kasir" disabled></select>
 
-<div class="container">
+    <label for="login-pass" style="text-align:left;">Masukkan PIN Password:</label>
+    <input type="password" id="login-pass" placeholder="PIN Kasir">
+
+    <button id="btn-login" onclick="prosesLogin()" disabled>Masuk ke Sistem</button>
+</div>
+
+<div id="app-screen" class="container" style="display: none;">
     <div class="card" id="card-input">
-        <div id="loader-input" class="loading-overlay">Menghubungkan ke Google Sheets...</div>
         <h2>Input Pesanan</h2>
         
         <label for="varian">Ukuran Varian Donat:</label>
@@ -121,19 +139,18 @@
     </div>
 
     <div class="card">
-        <h2>Otorisasi Petugas</h2>
-        <label for="pilih-kasir" style="color: #e84393;">Nama Kasir:</label>
-        <select id="pilih-kasir" style="border: 2px solid #e84393; background-color: #fff9fa;"></select>
-
-        <label for="pass-kasir" style="color: #e84393;">Password PIN Kasir:</label>
-        <input type="password" id="pass-kasir" placeholder="Masukkan PIN" style="border: 2px solid #e84393;">
+        <h2>Petugas Aktif</h2>
+        <div style="background: #fff9fa; padding: 10px; border-radius: 5px; border: 1px solid #fab1a0; margin-bottom: 15px;">
+            <span>Kasir Saat Ini: </span><strong id="txt-kasir-aktif" style="color: #e84393;">-</strong>
+            <button class="btn-logout" onclick="prosesLogout()">Keluar (Logout)</button>
+        </div>
 
         <hr style="border: 0; border-top: 1px dashed #ccc; margin: 20px 0;">
 
         <h2>Total Pembayaran</h2>
         <div class="summary-line"><span>Total Kotor:</span> <span id="txt-total-kotor">Rp 0</span></div>
         <div class="summary-line" style="color: green; font-weight: bold;"><span>Diskon (<span id="label-diskon">Promo</span>):</span> <span id="txt-diskon">Rp 0</span></div>
-        <div class="summary-line total-bold"><span>Total Bersih:</span> <span id="txt-total-Inter">Rp 0</span></div>
+        <div class="summary-line total-bold"><span>Total Bersih:</span> <span id="txt-total-bersih">Rp 0</span></div>
         
         <label for="metode-bayar">Metode Pembayaran:</label>
         <select id="metode-bayar" onchange="cekMetodeBayar()"></select>
@@ -149,7 +166,6 @@
         <div id="struk-section" style="display:none;">
             <h3>Pratinjau Struk & Antrian:</h3>
             <div style="background: #f1f2f6; padding: 15px; border-left: 4px solid #ff7675; margin-top: 15px;">
-                <center><img src="logo.png" alt="Logo Struk" onerror="this.style.display='none'" style="max-height: 60px; margin-bottom: 10px;"></center>
                 <div class="struk-output" id="struk-teks"></div>
             </div>
             <button onclick="window.print()" style="margin-top: 15px;">Print Struk Belanja</button>
@@ -158,9 +174,10 @@
 </div>
 
 <script>
-    // MASUKKAN URL CURRENT WEB APP APPS SCRIPT ANDA DI SINI SETELAH DEPLOY ULANG
+    // PASTE URL EXEC APPS SCRIPT ANDA DI SINI
     const SPREADSHEET_URL = "https://script.google.com/macros/s/AKfycbxW81p0um-PQwe_6oJM9LVnilveM324umptBsZvekxMr0A_yQZuPdpC3ylXPxUene3VTA/exec";
 
+    let dataset = null;
     let keranjang = [];
     let totalKotor = 0;
     let diskon = 0;
@@ -169,32 +186,98 @@
     let configDiskon = { minimal: 0, persen: 0 };
 
     window.onload = function() {
+        // Tarik Data Konfigurasi Utama
         fetch(SPREADSHEET_URL)
         .then(response => response.json())
         .then(data => {
-            // Render Pilihan Varian Donat
-            document.getElementById('varian').innerHTML = data.varian.map(v => `<option value="${v.nama}" data-harga="${v.harga}">Donat ${v.nama} (Rp ${v.harga.toLocaleString('id-ID')})</option>`).join('');
+            dataset = data;
             
-            // PENYESUAIAN UTAMA: Render Topping murni menggunakan Kolom C (Nama) dan D (Harga) tanpa variabel Jenis
+            // Isi Dropdown Login Kasir
+            document.getElementById('login-kasir').innerHTML = `<option value="" disabled selected>-- Pilih Nama Anda --</option>` + data.kasir.map(k => `<option value="${k}">${k}</option>`).join('');
+            document.getElementById('login-kasir').disabled = false;
+            document.getElementById('btn-login').disabled = false;
+            document.getElementById('loader-login').style.display = 'none';
+
+            // Isi Elemen Kasir Lainnya
+            document.getElementById('varian').innerHTML = data.varian.map(v => `<option value="${v.nama}" data-harga="${v.harga}">Donat ${v.nama} (Rp ${v.harga.toLocaleString('id-ID')})</option>`).join('');
             document.getElementById('topping').innerHTML = data.topping.map(t => {
                 let hargaBersih = typeof t.harga === 'string' ? parseInt(t.harga.replace(/[^0-9]/g, '')) : t.harga;
                 return `<option value="${t.nama}" data-harga="${hargaBersih}">${t.nama} (+Rp ${hargaBersih.toLocaleString('id-ID')})</option>`;
             }).join('');
-
             document.getElementById('metode-bayar').innerHTML = data.metode.map(m => `<option value="${m}">${m}</option>`).join('');
-            document.getElementById('pilih-kasir').innerHTML = `<option value="" disabled selected>-- Pilih Nama Kasir --</option>` + data.kasir.map(k => `<option value="${k}">${k}</option>`).join('');
-
+            
             configDiskon = data.diskonConfig;
             document.getElementById('label-diskon').innerText = `Min Rp ${configDiskon.minimal.toLocaleString('id-ID')}, ${configDiskon.persen}%`;
 
-            document.getElementById('loader-input').style.display = 'none';
-            cekMetodeBayar();
+            // CEK APAKAH SUDAH ADA KASIR YANG LOGIN SEBELUMNYA
+            checkSession();
         })
         .catch(err => {
-            alert("Gagal sinkronisasi data dengan Google Sheets.");
+            alert("Gagal memuat konfigurasi awal Sheets.");
             console.error(err);
         });
     };
+
+    function checkSession() {
+        const savedKasir = localStorage.getItem("kasir_nama");
+        const savedPIN = localStorage.getItem("kasir_pin");
+
+        if (savedKasir && savedPIN) {
+            document.getElementById('txt-kasir-aktif').innerText = savedKasir;
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('app-screen').style.display = 'grid';
+            cekMetodeBayar();
+        }
+    }
+
+    function prosesLogin() {
+        const nama = document.getElementById('login-kasir').value;
+        const pin = document.getElementById('login-pass').value;
+
+        if(!nama || !pin) return alert("Pilih nama kasir dan masukkan PIN password!");
+
+        document.getElementById('btn-login').innerText = "Memvalidasi...";
+        document.getElementById('btn-login').disabled = true;
+
+        // Validasi PIN langsung ke server Sheets
+        fetch(SPREADSHEET_URL, {
+            method: "POST",
+            body: JSON.stringify({ kasir: nama, password: pin, aksi: "login" })
+        })
+        .then(res => res.json())
+        .then(res => {
+            if (res.result === "SUCCESS_LOGIN") {
+                // Simpan Kredensial di Browser Kasir
+                localStorage.setItem("kasir_nama", nama);
+                localStorage.setItem("kasir_pin", pin);
+                
+                // Pindah Tampilan ke Aplikasi Utama
+                document.getElementById('txt-kasir-aktif').innerText = nama;
+                document.getElementById('login-screen').style.display = 'none';
+                document.getElementById('app-screen').style.display = 'grid';
+                document.getElementById('login-pass').value = "";
+                cekMetodeBayar();
+            } else {
+                alert("❌ PIN PASSWORD SALAH!");
+            }
+            document.getElementById('btn-login').innerText = "Masuk ke Sistem";
+            document.getElementById('btn-login').disabled = false;
+        })
+        .catch(err => {
+            alert("Terjadi masalah jaringan ke server Sheets.");
+            document.getElementById('btn-login').innerText = "Masuk ke Sistem";
+            document.getElementById('btn-login').disabled = false;
+        });
+    }
+
+    function prosesLogout() {
+        if(confirm("Apakah Anda yakin ingin Logout?")) {
+            localStorage.clear(); // Hapus sesi login
+            kosongkanKeranjang();
+            document.getElementById('app-screen').style.display = 'none';
+            document.getElementById('login-screen').style.display = 'block';
+        }
+    }
 
     function tambahPesanan() {
         const varSelect = document.getElementById('varian');
@@ -242,7 +325,7 @@
         });
 
         if (totalKotor >= configDiskon.minimal && configDiskon.minimal > 0) {
-            diskon = totalKotor * (configDiskon.persen / 100);
+            diskon = totalKotor * (configDiskon.percent / 100 || configDiskon.persen / 100);
         } else {
             diskon = 0;
         }
@@ -250,7 +333,7 @@
 
         document.getElementById('txt-total-kotor').innerText = `Rp ${totalKotor.toLocaleString('id-ID')}`;
         document.getElementById('txt-diskon').innerText = `Rp ${diskon.toLocaleString('id-ID')}`;
-        document.getElementById('txt-total-Inter').innerText = `Rp ${totalBersih.toLocaleString('id-ID')}`;
+        document.getElementById('txt-total-bersih').innerText = `Rp ${totalBersih.toLocaleString('id-ID')}`;
         hitungKembalian();
     }
 
@@ -285,37 +368,25 @@
         if(keranjang.length === 0) return alert('Keranjang belanja masih kosong!');
         const metode = document.getElementById('metode-bayar').value;
         const uangBayar = parseInt(document.getElementById('uang-bayar').value) || 0;
-        const namaKasir = document.getElementById('pilih-kasir').value;
-        const passwordKasir = document.getElementById('pass-kasir').value;
 
-        if(!namaKasir) return alert('Pilih petugas kasir!');
-        if(!passwordKasir) return alert('Masukkan PIN sandi kasir!');
+        // OTOMATIS AMBIL DATA DARI LOCAL STORAGE (KASIR TIDAK USAH KETIK PASSWORD LAGI)
+        const namaKasir = localStorage.getItem("kasir_nama");
+        const passwordKasir = localStorage.getItem("kasir_pin");
+
         if(metode === 'Tunai' && uangBayar < totalBersih) return alert('Nominal uang tunai kurang!');
 
         const btnSelesai = document.getElementById('btn-selesai');
         btnSelesai.innerText = "Memproses Nota...";
         btnSelesai.disabled = true;
 
-       let sekarang = new Date();
-// Memisahkan tanggal dan waktu ke variabel masing-masing
-let hanyaTanggal = sekarang.toLocaleDateString('id-ID'); // Hasil: DD/MM/YYYY
-let hanyaWaktu = sekarang.toLocaleTimeString('id-ID');   // Hasil: HH:MM:SS
-
-let dataKeSheet = {
-    tanggal: hanyaTanggal, // Dikirim terpisah
-    waktu: hanyaWaktu,     // Dikirim terpisah
-    kasir: namaKasir,
-    password: passwordKasir,
-    items: detailItems,
-    totalKotor: totalKotor,
-    diskon: diskon,
-    totalBersih: totalBersih,
-    metode: metode
-};
+        let sekarang = new Date();
+        let hanyaTanggal = sekarang.toLocaleDateString('id-ID');
+        let hanyaWaktu = sekarang.toLocaleTimeString('id-ID');
         let detailItems = keranjang.map(item => `${item.nama} x${item.qty}`).join(", ");
 
         let dataKeSheet = {
-            tanggal: tglFormat,
+            tanggal: hanyaTanggal,
+            waktu: hanyaWaktu,
             kasir: namaKasir,
             password: passwordKasir,
             items: detailItems,
@@ -332,8 +403,7 @@ let dataKeSheet = {
         .then(response => response.json())
         .then(res => {
             if (res.result === "WRONG_PASSWORD") {
-                alert("❌ PIN PASSWORD KASIR SALAH!");
-                document.getElementById('pass-kasir').value = "";
+                alert("❌ Sesi kasir bermasalah atau PIN diubah di spreadsheet. Silakan Logout dan Login kembali.");
                 btnSelesai.innerText = "Selesai & Cetak Struk";
                 btnSelesai.disabled = false;
                 return;
@@ -347,7 +417,8 @@ let dataKeSheet = {
                 struk += `================================\n`;
                 struk += `  NOMOR ANTRIAN :  [ ${nomorAntrianServer} ]  \n`;
                 struk += `================================\n`;
-                struk += `Tanggal : ${tglFormat}\n`;
+                struk += `Tanggal : ${hanyaTanggal}\n`;
+                struk += `Waktu   : ${hanyaWaktu}\n`;
                 struk += `Kasir   : ${namaKasir}\n`;
                 struk += `Metode  : ${metode}\n`;
                 struk += `--------------------------------\n`;
@@ -374,7 +445,6 @@ let dataKeSheet = {
                 document.getElementById('struk-teks').innerText = struk;
                 document.getElementById('struk-section').style.display = 'block';
                 
-                document.getElementById('pass-kasir').value = "";
                 btnSelesai.innerText = "Selesai & Cetak Struk";
                 btnSelesai.disabled = false;
             }
