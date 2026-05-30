@@ -380,7 +380,16 @@
         btnSelesai.disabled = true;
 
         let sekarang = new Date();
-        let hanyaTanggal = sekarang.toLocaleDateString('id-ID');
+
+        // Ambil komponen tanggal, bulan, dan tahun secara manual
+        let tanggal = String(sekarang.getDate()).padStart(2, '0');
+        let bulan = String(sekarang.getMonth() + 1).padStart(2, '0'); // Januari adalah 0
+        let tahun = sekarang.getFullYear();
+        
+        // Gabungkan menjadi format dd/mm/yyyy
+        let hanyaTanggal = `${tanggal}/${bulan}/${tahun}`; 
+        
+        // Waktu tetap diambil terpisah seperti biasa
         let hanyaWaktu = sekarang.toLocaleTimeString('id-ID');
         let detailItems = keranjang.map(item => `${item.nama} x${item.qty}`).join(", ");
 
