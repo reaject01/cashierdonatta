@@ -149,8 +149,9 @@ margin: 0mm;
 <label for="varian">Ukuran Varian Donat:</label>
 <select id="varian"></select>
 
-<label for="topping">Topping Tersedia:</label>
-<select id="topping"></select>
+<label for="topping-input">Topping Tersedia (Ketik untuk Mencari):</label>
+<input type="text" id="topping-input" list="topping-list" placeholder="Ketik nama topping...">
+<datalist id="topping-list"></datalist>
 
 <label for="jumlah">Jumlah Qty:</label>
 <input type="number" id="jumlah" value="1" min="1">
@@ -195,7 +196,6 @@ margin: 0mm;
 
 <h3>Struk & Antrian:</h3>
 <div id="struk-section" style="display:none;">
-
 <div style="background: #f1f2f6; padding: 15px; border-left: 4px solid #ff7675; margin-top: 15px;">
 <div class="struk-output" id="struk-teks"></div>
 </div>
@@ -212,7 +212,6 @@ margin: 0mm;
 </div>
 
 <script>
-// MASUKKAN URL WEB APP APPS SCRIPT BARU ANDA DI SINI
 const SPREADSHEET_URL = "https://script.google.com/macros/s/AKfycbxW81p0um-PQwe_6oJM9LVnilveM324umptBsZvekxMr0A_yQZuPdpC3ylXPxUene3VTA/exec";
 
 let dataset = null;
@@ -235,10 +234,16 @@ document.getElementById('btn-login').disabled = false;
 document.getElementById('loader-login').style.display = 'none';
 
 document.getElementById('varian').innerHTML = data.varian.map(v => `<option value="${v.nama}" data-harga="${v.harga}">Donat ${v.nama} (Rp ${v.harga.toLocaleString('id-ID')})</option>`).join('');
-document.getElementById('topping').innerHTML = data.topping.map(t => {
-let hargaBersih = typeof t.harga === 'string' ? parseInt(t.harga.replace(/[^0-9]/g, '')) : t.harga;
-return `<option value="${t.nama}" data-harga="${hargaBersih}">${t.nama} (+Rp ${hargaBersih.toLocaleString('id-ID')})</option>`;
+
+// PERUBAHAN: Simpan array topping asli ke variabel global browser & isi ke dalam elemen datalist HTML
+window.dataToppingAsli = data.topping.map(t => {
+    let hargaBersih = typeof t.harga === 'string' ? parseInt(t.harga.replace(/[^0-9]/g, '')) : t.harga;
+    return { nama: t.nama, harga: hargaBersih };
+});
+document.getElementById('topping-list').innerHTML = window.dataToppingAsli.map(t => {
+    return `<option value="${t.nama}">Harga: +Rp ${t.harga.toLocaleString('id-ID')}</option>`;
 }).join('');
+
 document.getElementById('metode-bayar').innerHTML = data.metode.map(m => `<option value="${m}">${m}</option>`).join('');
 
 configDiskon = data.diskonConfig;
@@ -310,18 +315,26 @@ document.getElementById('login-screen').style.display = 'block';
 }
 }
 
+// PERUBAHAN: Penyesuaian total fungsi penambahan pesanan untuk membaca input teks autocomplete
 function tambahPesanan() {
 const varSelect = document.getElementById('varian');
-const topSelect = document.getElementById('topping');
+const topInput = document.getElementById('topping-input').value.trim();
 const qty = parseInt(document.getElementById('jumlah').value);
 
-if(!topSelect.value) return alert('Pilihan topping kosong!');
+if(!topInput) return alert('Pilihan topping tidak boleh kosong!');
 if(qty < 1 || isNaN(qty)) return alert('Jumlah Qty tidak valid!');
+
+// Cari nama topping yang diketik kasir di dalam dataset global browser
+const toppingDitemukan = window.dataToppingAsli.find(t => t.nama.toLowerCase() === topInput.toLowerCase());
+
+if(!toppingDitemukan) {
+    return alert('Topping tidak ditemukan! Pastikan mengetik dan memilih dari daftar rekomendasi.');
+}
 
 const namaVarian = varSelect.value;
 const hargaVarian = parseInt(varSelect.options[varSelect.selectedIndex].getAttribute('data-harga'));
-const namaTopping = topSelect.value;
-const hargaTopping = parseInt(topSelect.options[topSelect.selectedIndex].getAttribute('data-harga'));
+const namaTopping = toppingDitemukan.nama;
+const hargaTopping = toppingDitemukan.harga;
 
 const hargaSatuan = hargaVarian + hargaTopping;
 const subtotal = hargaSatuan * qty;
@@ -332,9 +345,12 @@ if(indexSama > -1) {
 keranjang[indexSama].qty += qty;
 keranjang[indexSama].subtotal += subtotal;
 } else {
-// Diperbaiki dari penulisan objek ganda sebelumnya
 keranjang.push({ nama: namaItem, harga: hargaSatuan, qty: qty, subtotal: subtotal });
 }
+
+// Reset kolom teks pencarian topping agar bersih kembali setelah masuk keranjang
+document.getElementById('topping-input').value = '';
+
 updateTabel();
 }
 
@@ -346,14 +362,14 @@ totalKotor = 0;
 keranjang.forEach((item, index) => {
 totalKotor += item.subtotal;
 tbody.innerHTML += `
-              <tr>
-                  <td>${item.nama}</td>
-                  <td>Rp ${item.harga.toLocaleString('id-ID')}</td>
-                  <td>${item.qty}</td>
-                  <td>Rp ${item.subtotal.toLocaleString('id-ID')}</td>
-                  <td><button style="padding:5px; margin:0;" class="btn-danger" onclick="hapusItem(${index})">Hapus</button></td>
-              </tr>
-          `;
+               <tr>
+                   <td>${item.nama}</td>
+                   <td>Rp ${item.harga.toLocaleString('id-ID')}</td>
+                   <td>${item.qty}</td>
+                   <td>Rp ${item.subtotal.toLocaleString('id-ID')}</td>
+                   <td><button style="padding:5px; margin:0;" class="btn-danger" onclick="hapusItem(${index})">Hapus</button></td>
+               </tr>
+           `;
 });
 
 if (totalKotor >= configDiskon.minimal && configDiskon.minimal > 0) {
@@ -370,10 +386,12 @@ hitungKembalian();
 }
 
 function hapusItem(index) { keranjang.splice(index, 1); updateTabel(); }
+
 function kosongkanKeranjang() { 
 keranjang = []; 
 updateTabel(); 
 document.getElementById('nama-pemesan').value = ''; 
+document.getElementById('topping-input').value = ''; // PERUBAHAN: Reset input teks topping
 document.getElementById('struk-section').style.display = 'none'; 
 }
 
@@ -419,7 +437,7 @@ btnSelesai.disabled = true;
 let sekarang = new Date();
 let tanggal = String(sekarang.getDate()).padStart(2, '0');
 let bulan = String(sekarang.getMonth() + 1).padStart(2, '0');
-let tahun = sekarang.getFullYear(); // Dibersihkan dari penulisan bug 'Clinical'
+let tahun = sekarang.getFullYear();
 
 let hanyaTanggal = `${tanggal}/${bulan}/${tahun}`; 
 let hanyaWaktu = sekarang.toLocaleTimeString('id-ID');
@@ -430,7 +448,7 @@ tanggal: hanyaTanggal,
 waktu: hanyaWaktu,
 kasir: namaKasir,
 password: passwordKasir,
-pemesan: namaPemesan, // Mengirim data Pemesan
+pemesan: namaPemesan,
 items: detailItems,
 totalKotor: totalKotor,
 diskon: diskon,
@@ -462,7 +480,7 @@ struk += `================================\n`;
 struk += `Tanggal : ${hanyaTanggal}\n`;
 struk += `Waktu   : ${hanyaWaktu}\n`;
 struk += `Kasir   : ${namaKasir}\n`;
-struk += `Pemesan : ${namaPemesan}\n`; // Menampilkan Nama di Struk Fisik
+struk += `Pemesan : ${namaPemesan}\n`;
 struk += `Metode  : ${metode}\n`;
 struk += `--------------------------------\n`;
 
@@ -489,7 +507,6 @@ struk += `\n\n\n`;
 document.getElementById('struk-teks').innerText = struk;
 document.getElementById('struk-section').style.display = 'block';
 
-// Otomatis bersihkan input nama pelanggan untuk order selanjutnya
 document.getElementById('nama-pemesan').value = '';
 
 btnSelesai.innerText = "Selesai & Cetak Struk";
