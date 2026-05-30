@@ -296,8 +296,22 @@
         btnSelesai.innerText = "Memproses Nota...";
         btnSelesai.disabled = true;
 
-        let sekarang = new Date();
-        let tglFormat = sekarang.toLocaleDateString('id-ID') + ' ' + sekarang.toLocaleTimeString('id-ID');
+       let sekarang = new Date();
+// Memisahkan tanggal dan waktu ke variabel masing-masing
+let hanyaTanggal = sekarang.toLocaleDateString('id-ID'); // Hasil: DD/MM/YYYY
+let hanyaWaktu = sekarang.toLocaleTimeString('id-ID');   // Hasil: HH:MM:SS
+
+let dataKeSheet = {
+    tanggal: hanyaTanggal, // Dikirim terpisah
+    waktu: hanyaWaktu,     // Dikirim terpisah
+    kasir: namaKasir,
+    password: passwordKasir,
+    items: detailItems,
+    totalKotor: totalKotor,
+    diskon: diskon,
+    totalBersih: totalBersih,
+    metode: metode
+};
         let detailItems = keranjang.map(item => `${item.nama} x${item.qty}`).join(", ");
 
         let dataKeSheet = {
