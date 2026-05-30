@@ -92,37 +92,28 @@
         /* ATURAN FIX CETAK UKURAN KERTAS A5 (1 HALAMAN TIDAK TERPOTONG)        */
         /* ==================================================================== */
         @media print {
-            /* Sembunyikan seluruh elemen visual aplikasi kasir */
             body * {
                 visibility: hidden;
             }
-            
-            /* Tampilkan HANYA kontainer teks area struk */
             #struk-section, #struk-section * {
                 visibility: visible;
             }
-            
-            /* Paksa posisi struk berada di area paling atas kiri kertas A5 */
             #struk-section {
                 position: absolute;
                 left: 0;
                 top: 0;
                 width: 100%;
                 margin: 0;
-                padding: 10mm; /* Jarak aman tepi kertas A5 */
+                padding: 10mm;
                 background: white;
                 box-sizing: border-box;
             }
-            
-            /* Sembunyikan judul pratinjau h3 dan tombol print internal browser */
             #struk-section button, #struk-section h3 {
                 display: none !important;
             }
-            
-            /* Desain teks struk agar proporsional di kertas A5 dan pas 1 halaman */
             .struk-output {
                 font-family: 'Courier New', Courier, monospace;
-                font-size: 12pt; /* Ukuran teks ideal dan tajam untuk format A5 */
+                font-size: 12pt;
                 line-height: 1.3;
                 white-space: pre-wrap;
                 background: transparent !important;
@@ -130,13 +121,11 @@
                 margin: 0;
                 color: #000 !important;
                 width: 100%;
-                page-break-inside: avoid; /* Mencegah pemotongan halaman di tengah teks */
+                page-break-inside: avoid;
             }
-            
-            /* Pengaturan dimensi kertas A5 standar internasional */
             @page {
-                size: A5; /* Otomatis mengeset layout printer ke ukuran kertas A5 */
-                margin: 0mm; /* Menghilangkan margin bawaan browser Chrome/HP */
+                size: A5;
+                margin: 0mm;
             }
         }
     </style>
@@ -375,7 +364,7 @@
         });
 
         if (totalKotor >= configDiskon.minimal && configDiskon.minimal > 0) {
-            diskon = totalKotor * (configDiskon.percent / 100 || configDiskon.persen / 100);
+            diskon = totalKotor * (configDiskon.persen / 100);
         } else {
             diskon = 0;
         }
@@ -391,7 +380,7 @@
     function kosongkanKeranjang() { 
         keranjang = []; 
         updateTabel(); 
-        document.getElementById('nama-pemesan').value = ''; // Reset input nama
+        document.getElementById('nama-pemesan').value = '';
         document.getElementById('struk-section').style.display = 'none'; 
     }
 
@@ -439,16 +428,15 @@
         let bulan = String(sekarang.getMonth() + 1).padStart(2, '0');
         let tahun = sekarang.getFullYear();
         let hanyaTanggal = `${tanggal}/${bulan}/${tahun}`; 
-        let hanyaWaktu = Clinical = sekarang.toLocaleTimeString('id-ID');
+        let hanyaWaktu = sekarang.toLocaleTimeString('id-ID');
         let detailItems = keranjang.map(item => `${item.nama} x${item.qty}`).join(", ");
 
-        // Data dikirim ke Google Sheets include dengan nama_pemesan
         let dataKeSheet = {
             tanggal: hanyaTanggal,
             waktu: hanyaWaktu,
             kasir: namaKasir,
             password: passwordKasir,
-            pemesan: namaPemesan, // Properti dikirim ke Backend Apps Script
+            pemesan: namaPemesan,
             items: detailItems,
             totalKotor: totalKotor,
             diskon: diskon,
@@ -472,7 +460,6 @@
             if (res.result === "SUCCESS") {
                 let nomorAntrianServer = res.antrian;
 
-                /* Format Struk Diperlebar menjadi 42 karakter agar proporsional di A5 */
                 let struk = `==========================================\n`;
                 struk += `              KEDAI DONATTA               \n`;
                 struk += `==========================================\n`;
@@ -481,7 +468,7 @@
                 struk += `Tanggal  : ${hanyaTanggal}\n`;
                 struk += `Waktu    : ${hanyaWaktu}\n`;
                 struk += `Kasir    : ${namaKasir}\n`;
-                struk += `Pemesan  : ${namaPemesan}\n`; // Nama Pemesan Tercetak di Struk
+                struk += `Pemesan  : ${namaPemesan}\n`;
                 struk += `Metode   : ${metode}\n`;
                 struk += `------------------------------------------\n`;
                 
@@ -510,8 +497,6 @@
                 
                 btnSelesai.innerText = "Selesai & Cetak Struk";
                 btnSelesai.disabled = false;
-
-                // PERUBAHAN: Perintah otomatis window.print() di sini telah DILAPUS agar tidak langsung mencetak otomatis.
             }
         })
         .catch(error => {
