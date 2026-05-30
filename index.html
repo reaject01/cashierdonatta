@@ -3,8 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <link rel="icon" type="image/png" href="logo.png">
     
     <title>Kasir Kedai Donatta</title>
     <style>
@@ -93,23 +91,15 @@
             align-items:center; font-size:18px; font-weight:bold; color:#e84393;
             z-index: 10; border-radius: 10px;
         }
-
+        
         /* ATURAN PRINT THERMAL */
-        /* ==================================================================== */
-        /* ATURAN FIX PRINTER THERMAL (HANYA STRUK YANG DIPRINT)                */
-        /* ==================================================================== */
         @media print {
-            /* Sembunyikan seluruh elemen halaman web kasir */
             body * {
                 visibility: hidden;
             }
-            
-            /* Tampilkan HANYA area teks struk */
             #struk-section, #struk-section * {
                 visibility: visible;
             }
-            
-            /* Atur posisi struk mentok di ujung kiri atas kertas roll */
             #struk-section {
                 position: absolute;
                 left: 0;
@@ -120,17 +110,11 @@
                 background: white;
             }
             #struk-section button {
-            
-            /* Sembunyikan tombol print itu sendiri agar tidak ikut tercetak */
-            #struk-section button, #struk-section h3 {
                 display: none !important;
             }
-            
-            /* Format font khas mesin kasir pos, hitam pekat, dan pas di kertas kecil */
             .struk-output {
                 font-family: 'Courier New', Courier, monospace;
                 font-size: 12pt;
-                font-size: 10pt; /* Ukuran teks ideal untuk printer thermal roll */
                 line-height: 1.2;
                 white-space: pre-wrap;
                 background: transparent !important;
@@ -138,12 +122,9 @@
                 margin: 0;
                 color: #000 !important;
             }
-            
-            /* Hilangkan header/footer bawaan browser (seperti judul & link web) */
             @page {
                 size: auto;
                 margin: 0mm;
-                margin: 0mm; 
             }
         }
     </style>
@@ -152,10 +133,10 @@
 
 <div id="login-screen" class="login-box">
     <img src="logo.png" alt="Logo Donatta" style="width: 100px; height: 100px; margin-bottom: 10px; object-fit: contain;">
-
+    
     <h2 style="border:none; margin-bottom:20px;">🍩 LOGIN KASIR DONATTA 🍩</h2>
     <div id="loader-login" style="color:#e84393; font-weight:bold; margin-bottom:15px;">Mengambil data kasir...</div>
-
+        
     <label for="login-kasir" style="text-align:left;">Pilih Nama Anda:</label>
     <select id="login-kasir" disabled></select>
 
@@ -166,14 +147,13 @@
 </div>
 
 <div id="app-screen" class="container" style="display: none;">
-    
     <div class="card" id="card-input">
         <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
             <img src="logo.png" alt="Logo" style="width: 40px; height: 40px; object-fit: contain;">
             <h2 style="margin: 0; padding: 0; border: none; flex-grow: 1;">Input Pesanan</h2>
         </div>
         <div style="border-bottom: 2px solid #fab1a0; margin-bottom: 15px;"></div>
-
+        
         <label for="varian">Ukuran Varian Donat:</label>
         <select id="varian"></select>
 
@@ -206,7 +186,7 @@
         <div class="summary-line"><span>Total Kotor:</span> <span id="txt-total-kotor">Rp 0</span></div>
         <div class="summary-line" style="color: green; font-weight: bold;"><span>Diskon (<span id="label-diskon">Promo</span>):</span> <span id="txt-diskon">Rp 0</span></div>
         <div class="summary-line total-bold"><span>Total Bersih:</span> <span id="txt-total-bersih">Rp 0</span></div>
-
+        
         <label for="metode-bayar">Metode Pembayaran:</label>
         <select id="metode-bayar" onchange="cekMetodeBayar()"></select>
 
@@ -219,7 +199,6 @@
         <button id="btn-selesai" style="background-color: #2ecc71;" onclick="prosesTransaksi()">Selesai & Cetak Struk</button>
 
         <div id="struk-section" style="display:none;">
-            <h3>Struk & Antrian:</h3>
             <h3>Pratinjau Struk & Antrian:</h3>
             <div style="background: #f1f2f6; padding: 15px; border-left: 4px solid #ff7675; margin-top: 15px;">
                 <div class="struk-output" id="struk-teks"></div>
@@ -253,7 +232,7 @@
         .then(response => response.json())
         .then(data => {
             dataset = data;
-
+            
             document.getElementById('login-kasir').innerHTML = `<option value="" disabled selected>-- Pilih Nama Anda --</option>` + data.kasir.map(k => `<option value="${k}">${k}</option>`).join('');
             document.getElementById('login-kasir').disabled = false;
             document.getElementById('btn-login').disabled = false;
@@ -265,7 +244,7 @@
                 return `<option value="${t.nama}" data-harga="${hargaBersih}">${t.nama} (+Rp ${hargaBersih.toLocaleString('id-ID')})</option>`;
             }).join('');
             document.getElementById('metode-bayar').innerHTML = data.metode.map(m => `<option value="${m}">${m}</option>`).join('');
-
+            
             configDiskon = data.diskonConfig;
             document.getElementById('label-diskon').innerText = `Min Rp ${configDiskon.minimal.toLocaleString('id-ID')}, ${configDiskon.persen}%`;
 
@@ -307,7 +286,7 @@
             if (res.result === "SUCCESS_LOGIN") {
                 localStorage.setItem("kasir_nama", nama);
                 localStorage.setItem("kasir_pin", pin);
-
+                
                 document.getElementById('txt-kasir-aktif').innerText = nama;
                 document.getElementById('login-screen').style.display = 'none';
                 document.getElementById('app-screen').style.display = 'grid';
@@ -358,7 +337,6 @@
             keranjang[indexSama].subtotal += subtotal;
         } else {
             keranjang.push({ nama: namaItem, length: hargaSatuan, harga: hargaSatuan, qty: qty, subtotal: subtotal });
-            keranjang.push({ nama: namaItem, harga: hargaSatuan, qty: qty, subtotal: subtotal });
         }
         updateTabel();
     }
@@ -441,7 +419,6 @@
         let bulan = String(sekarang.getMonth() + 1).padStart(2, '0');
         let tahun = Clinical = sekarang.getFullYear();
         
-        let tahun = sekarang.getFullYear();
         let hanyaTanggal = `${tanggal}/${bulan}/${tahun}`; 
         
         let hanyaWaktu = sekarang.toLocaleTimeString('id-ID');
@@ -475,7 +452,6 @@
             if (res.result === "SUCCESS") {
                 let nomorAntrianServer = res.antrian;
 
-                /* Format Struk Pas Ukuran Kertas Thermal 58mm/80mm (Maks 32 karakter per baris) */
                 let struk = `================================\n`;
                 struk += `         KEDAI DONATTA          \n`;
                 struk += `================================\n`;
@@ -486,17 +462,17 @@
                 struk += `Kasir   : ${namaKasir}\n`;
                 struk += `Metode  : ${metode}\n`;
                 struk += `--------------------------------\n`;
-
+                
                 keranjang.forEach(item => {
                     struk += `${item.nama}\n`;
                     struk += `  ${item.qty} x Rp ${item.harga.toLocaleString('id-ID')} = Rp ${item.subtotal.toLocaleString('id-ID')}\n`;
                 });
-
+                
                 struk += `--------------------------------\n`;
                 struk += `Total Kotor : Rp ${totalKotor.toLocaleString('id-ID')}\n`;
                 struk += `Diskon      : Rp ${diskon.toLocaleString('id-ID')}\n`;
                 struk += `TOTAL NET   : Rp ${totalBersih.toLocaleString('id-ID')}\n`;
-
+                
                 if(metode === 'Tunai') {
                     struk += `Bayar Tunai : Rp ${uangBayar.toLocaleString('id-ID')}\n`;
                     struk += `Kembalian   : Rp ${kembalian.toLocaleString('id-ID')}\n`;
@@ -506,19 +482,12 @@
                 struk += `================================\n`;
                 struk += `  Terima Kasih Atas Kunjungan Anda \n`;
                 struk += `\n\n\n`;
-                struk += `  Terima Kasih Atas Kunjungan  \n`;
-                struk += `\n\n\n`; /* Jarak potong kertas thermal roll */
 
                 document.getElementById('struk-teks').innerText = struk;
                 document.getElementById('struk-section').style.display = 'block';
-
+                
                 btnSelesai.innerText = "Selesai & Cetak Struk";
                 btnSelesai.disabled = false;
-
-                // SISTEM OTOMATIS: Langsung memicu jendela cetak printer thermal tanpa klik manual lagi
-                setTimeout(function() {
-                    window.print();
-                }, 500);
             }
         })
         .catch(error => {
