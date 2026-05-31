@@ -85,6 +85,16 @@ margin: 0;
 .btn-logout { background-color: #d63031; margin-top: 10px;}
 .btn-logout:hover { background-color: #c0392b; }
 
+/* Input khusus cari topping agar tampilannya lebih manis */
+.input-cari {
+background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="gray" class="bi bi-search" viewBox="0 0 16 16"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/></svg>');
+background-repeat: no-repeat;
+background-position: 10px center;
+padding-left: 35px !important;
+margin-bottom: 5px; /* nempel dengan select bawahnya */
+font-size: 14px;
+}
+
 /* ATURAN PRINT THERMAL - DIBAIKI */
 @media print {
 body * {
@@ -150,6 +160,7 @@ margin: 0mm;
 <select id="varian"></select>
 
 <label for="topping">Topping Tersedia:</label>
+<input type="text" id="cari-topping" class="input-cari" placeholder="Ketik untuk filter topping..." oninput="filterTopping()">
 <select id="topping"></select>
 
 <label for="jumlah">Jumlah Qty:</label>
@@ -256,6 +267,31 @@ console.error(err);
 });
 };
 
+/* FUNGSI BARU: Memfilter Topping Berdasarkan Ketikan Kasir */
+function filterTopping() {
+const kataKunci = document.getElementById('cari-topping').value.toLowerCase();
+const selectTopping = document.getElementById('topping');
+const opsiTopping = selectTopping.options;
+let opsiPertamaDitemukan = null;
+
+for (let i = 0; i < opsiTopping.length; i++) {
+const teksOpsi = opsiTopping[i].text.toLowerCase();
+if (teksOpsi.includes(kataKunci)) {
+opsiTopping[i].style.display = ""; // Tampilkan jika cocok
+if (!opsiPertamaDitemukan) {
+opsiPertamaDitemukan = opsiTopping[i];
+}
+} else {
+opsiTopping[i].style.display = "none"; // Sembunyikan jika tidak cocok
+}
+}
+
+// Otomatis pilih item pertama yang muncul dari hasil filter agar kasir tidak bingung
+if (opsiPertamaDitemukan) {
+selectTopping.value = opsiPertamaDitemukan.value;
+}
+}
+
 function checkSession() {
 const savedKasir = localStorage.getItem("kasir_nama");
 const savedPIN = localStorage.getItem("kasir_pin");
@@ -339,9 +375,12 @@ keranjang[indexSama].subtotal += subtotal;
 keranjang.push({ nama: namaItem, harga: hargaSatuan, qty: qty, subtotal: subtotal });
 }
 updateTabel();
+
+// Reset filter setelah tambah pesanan
+document.getElementById('cari-topping').value = '';
+filterTopping();
 }
 
-/* FUNGSI UPDATE TABEL - SUDAH DIERADIKASI DARI BUG SINTAKS */
 function updateTabel() {
 const tbody = document.getElementById('tabel-keranjang');
 tbody.innerHTML = '';
@@ -460,9 +499,9 @@ if (res.result === "SUCCESS") {
 let nomorAntrianServer = res.antrian;
 
 let struk = `================================\n`;
-struk += `          KEDAI DONATTA         \n`;
+struk += `           KEDAI DONATTA         \n`;
 struk += `================================\n`;
-struk += `  NOMOR ANTRIAN :  [ ${nomorAntrianServer} ]  \n`;
+struk += `  NOMOR ANTRIAN :  [ ${nomorAntrianServer} ]   \n`;
 struk += `================================\n`;
 struk += `Tanggal : ${hanyaTanggal}\n`;
 struk += `Waktu   : ${hanyaWaktu}\n`;
