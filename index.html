@@ -149,8 +149,8 @@ margin: 0mm;
 <label for="varian">Ukuran Varian Donat:</label>
 <select id="varian"></select>
 
-<label for="topping-input">Topping Tersedia (Ketik untuk Mencari):</label>
-<input type="text" id="topping-input" list="topping-list" placeholder="Ketik nama topping...">
+<label for="topping-input">Topping Tersedia (Ketik / Klik Panah):</label>
+<input type="text" id="topping-input" list="topping-list" placeholder="Pilih atau ketik nama topping..." onfocus="this.value=''">
 <datalist id="topping-list"></datalist>
 
 <label for="jumlah">Jumlah Qty:</label>
@@ -235,13 +235,15 @@ document.getElementById('loader-login').style.display = 'none';
 
 document.getElementById('varian').innerHTML = data.varian.map(v => `<option value="${v.nama}" data-harga="${v.harga}">Donat ${v.nama} (Rp ${v.harga.toLocaleString('id-ID')})</option>`).join('');
 
-// PERUBAHAN: Simpan array topping asli ke variabel global browser & isi ke dalam elemen datalist HTML
+// Simpan data topping asli secara global untuk proses kalkulasi
 window.dataToppingAsli = data.topping.map(t => {
     let hargaBersih = typeof t.harga === 'string' ? parseInt(t.harga.replace(/[^0-9]/g, '')) : t.harga;
     return { nama: t.nama, harga: hargaBersih };
 });
+
+// Render list autocomplete dropdown (Menampilkan Nama + Harga sekaligus dalam opsi)
 document.getElementById('topping-list').innerHTML = window.dataToppingAsli.map(t => {
-    return `<option value="${t.nama}">Harga: +Rp ${t.harga.toLocaleString('id-ID')}</option>`;
+    return `<option value="${t.nama}">+Rp ${t.harga.toLocaleString('id-ID')}</option>`;
 }).join('');
 
 document.getElementById('metode-bayar').innerHTML = data.metode.map(m => `<option value="${m}">${m}</option>`).join('');
@@ -315,7 +317,6 @@ document.getElementById('login-screen').style.display = 'block';
 }
 }
 
-// PERUBAHAN: Penyesuaian total fungsi penambahan pesanan untuk membaca input teks autocomplete
 function tambahPesanan() {
 const varSelect = document.getElementById('varian');
 const topInput = document.getElementById('topping-input').value.trim();
@@ -324,11 +325,11 @@ const qty = parseInt(document.getElementById('jumlah').value);
 if(!topInput) return alert('Pilihan topping tidak boleh kosong!');
 if(qty < 1 || isNaN(qty)) return alert('Jumlah Qty tidak valid!');
 
-// Cari nama topping yang diketik kasir di dalam dataset global browser
+// Validasi kecocokan input teks dengan database topping terdaftar
 const toppingDitemukan = window.dataToppingAsli.find(t => t.nama.toLowerCase() === topInput.toLowerCase());
 
 if(!toppingDitemukan) {
-    return alert('Topping tidak ditemukan! Pastikan mengetik dan memilih dari daftar rekomendasi.');
+    return alert('Topping tidak ditemukan! Pastikan memilih topping yang tertera dari daftar dropdown pencarian.');
 }
 
 const namaVarian = varSelect.value;
@@ -348,7 +349,7 @@ keranjang[indexSama].subtotal += subtotal;
 keranjang.push({ nama: namaItem, harga: hargaSatuan, qty: qty, subtotal: subtotal });
 }
 
-// Reset kolom teks pencarian topping agar bersih kembali setelah masuk keranjang
+// Mengosongkan kolom teks kembali agar siap digunakan untuk pesanan item selanjutnya
 document.getElementById('topping-input').value = '';
 
 updateTabel();
@@ -391,7 +392,7 @@ function kosongkanKeranjang() {
 keranjang = []; 
 updateTabel(); 
 document.getElementById('nama-pemesan').value = ''; 
-document.getElementById('topping-input').value = ''; // PERUBAHAN: Reset input teks topping
+document.getElementById('topping-input').value = ''; 
 document.getElementById('struk-section').style.display = 'none'; 
 }
 
@@ -440,7 +441,7 @@ let bulan = String(sekarang.getMonth() + 1).padStart(2, '0');
 let tahun = sekarang.getFullYear();
 
 let hanyaTanggal = `${tanggal}/${bulan}/${tahun}`; 
-let hanyaWaktu = sekarang.toLocaleTimeString('id-ID');
+let hanyaWaktu = ThermalTime = sekarang.toLocaleTimeString('id-ID');
 let detailItems = keranjang.map(item => `${item.nama} x${item.qty}`).join(", ");
 
 let dataKeSheet = {
