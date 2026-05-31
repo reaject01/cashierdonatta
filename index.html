@@ -149,8 +149,8 @@ margin: 0mm;
 <label for="varian">Ukuran Varian Donat:</label>
 <select id="varian"></select>
 
-<label for="topping-input">Topping Tersedia (Ketik / Klik Panah):</label>
-<input type="text" id="topping-input" list="topping-list" placeholder="Pilih atau ketik nama topping..." onfocus="this.value=''">
+<label for="topping-input">Topping Tersedia (Ketik / Sentuh Kolom):</label>
+<input type="text" id="topping-input" list="topping-list" placeholder="Pilih atau ketik nama topping..." autocomplete="off" onfocus="bukaDropdownMobile(this)" onclick="bukaDropdownMobile(this)">
 <datalist id="topping-list"></datalist>
 
 <label for="jumlah">Jumlah Qty:</label>
@@ -235,13 +235,11 @@ document.getElementById('loader-login').style.display = 'none';
 
 document.getElementById('varian').innerHTML = data.varian.map(v => `<option value="${v.nama}" data-harga="${v.harga}">Donat ${v.nama} (Rp ${v.harga.toLocaleString('id-ID')})</option>`).join('');
 
-// Simpan data topping asli secara global untuk proses kalkulasi
 window.dataToppingAsli = data.topping.map(t => {
     let hargaBersih = typeof t.harga === 'string' ? parseInt(t.harga.replace(/[^0-9]/g, '')) : t.harga;
     return { nama: t.nama, harga: hargaBersih };
 });
 
-// Render list autocomplete dropdown (Menampilkan Nama + Harga sekaligus dalam opsi)
 document.getElementById('topping-list').innerHTML = window.dataToppingAsli.map(t => {
     return `<option value="${t.nama}">+Rp ${t.harga.toLocaleString('id-ID')}</option>`;
 }).join('');
@@ -259,6 +257,14 @@ console.error(err);
 });
 };
 
+// TRIK KHUSUS SMARTPHONE: Memaksa browser mobile memunculkan seluruh list dropdown begitu input disentuh/fokus
+function bukaDropdownMobile(inputElement) {
+    inputElement.value = ''; // Bersihkan teks lama otomatis
+    // Memicu event input kosong agar browser mobile sadar harus merender semua pilihan datalist
+    let event = new Event('input');
+    inputElement.dispatchEvent(event);
+}
+
 function checkSession() {
 const savedKasir = localStorage.getItem("kasir_nama");
 const savedPIN = localStorage.getItem("kasir_pin");
@@ -275,251 +281,4 @@ function prosesLogin() {
 const nama = document.getElementById('login-kasir').value;
 const pin = document.getElementById('login-pass').value;
 
-if(!nama || !pin) return alert("Pilih nama kasir dan masukkan PIN password!");
-
-document.getElementById('btn-login').innerText = "Memvalidasi...";
-document.getElementById('btn-login').disabled = true;
-
-fetch(SPREADSHEET_URL, {
-method: "POST",
-body: JSON.stringify({ kasir: nama, password: pin, aksi: "login" })
-})
-.then(res => res.json())
-.then(res => {
-if (res.result === "SUCCESS_LOGIN") {
-localStorage.setItem("kasir_nama", nama);
-localStorage.setItem("kasir_pin", pin);
-
-document.getElementById('txt-kasir-aktif').innerText = nama;
-document.getElementById('login-screen').style.display = 'none';
-document.getElementById('app-screen').style.display = 'grid';
-document.getElementById('login-pass').value = "";
-cekMetodeBayar();
-} else {
-alert("❌ PIN PASSWORD SALAH!");
-}
-document.getElementById('btn-login').innerText = "Masuk ke Sistem";
-document.getElementById('btn-login').disabled = false;
-})
-.catch(err => {
-alert("Terjadi masalah jaringan ke server Sheets.");
-document.getElementById('btn-login').innerText = "Masuk ke Sistem";
-document.getElementById('btn-login').disabled = false;
-});
-}
-
-function prosesLogout() {
-if(confirm("Apakah Anda yakin ingin Logout?")) {
-localStorage.clear();
-kosongkanKeranjang();
-document.getElementById('app-screen').style.display = 'none';
-document.getElementById('login-screen').style.display = 'block';
-}
-}
-
-function tambahPesanan() {
-const varSelect = document.getElementById('varian');
-const topInput = document.getElementById('topping-input').value.trim();
-const qty = parseInt(document.getElementById('jumlah').value);
-
-if(!topInput) return alert('Pilihan topping tidak boleh kosong!');
-if(qty < 1 || isNaN(qty)) return alert('Jumlah Qty tidak valid!');
-
-// Validasi kecocokan input teks dengan database topping terdaftar
-const toppingDitemukan = window.dataToppingAsli.find(t => t.nama.toLowerCase() === topInput.toLowerCase());
-
-if(!toppingDitemukan) {
-    return alert('Topping tidak ditemukan! Pastikan memilih topping yang tertera dari daftar dropdown pencarian.');
-}
-
-const namaVarian = varSelect.value;
-const hargaVarian = parseInt(varSelect.options[varSelect.selectedIndex].getAttribute('data-harga'));
-const namaTopping = toppingDitemukan.nama;
-const hargaTopping = toppingDitemukan.harga;
-
-const hargaSatuan = hargaVarian + hargaTopping;
-const subtotal = hargaSatuan * qty;
-const namaItem = `Donat ${namaVarian} (${namaTopping})`;
-
-const indexSama = keranjang.findIndex(item => item.nama === namaItem);
-if(indexSama > -1) {
-keranjang[indexSama].qty += qty;
-keranjang[indexSama].subtotal += subtotal;
-} else {
-keranjang.push({ nama: namaItem, harga: hargaSatuan, qty: qty, subtotal: subtotal });
-}
-
-// Mengosongkan kolom teks kembali agar siap digunakan untuk pesanan item selanjutnya
-document.getElementById('topping-input').value = '';
-
-updateTabel();
-}
-
-function updateTabel() {
-const tbody = document.getElementById('tabel-keranjang');
-tbody.innerHTML = '';
-totalKotor = 0;
-
-keranjang.forEach((item, index) => {
-totalKotor += item.subtotal;
-tbody.innerHTML += `
-               <tr>
-                   <td>${item.nama}</td>
-                   <td>Rp ${item.harga.toLocaleString('id-ID')}</td>
-                   <td>${item.qty}</td>
-                   <td>Rp ${item.subtotal.toLocaleString('id-ID')}</td>
-                   <td><button style="padding:5px; margin:0;" class="btn-danger" onclick="hapusItem(${index})">Hapus</button></td>
-               </tr>
-           `;
-});
-
-if (totalKotor >= configDiskon.minimal && configDiskon.minimal > 0) {
-diskon = totalKotor * (configDiskon.persen / 100);
-} else {
-diskon = 0;
-}
-totalBersih = totalKotor - diskon;
-
-document.getElementById('txt-total-kotor').innerText = `Rp ${totalKotor.toLocaleString('id-ID')}`;
-document.getElementById('txt-diskon').innerText = `Rp ${diskon.toLocaleString('id-ID')}`;
-document.getElementById('txt-total-bersih').innerText = `Rp ${totalBersih.toLocaleString('id-ID')}`;
-hitungKembalian();
-}
-
-function hapusItem(index) { keranjang.splice(index, 1); updateTabel(); }
-
-function kosongkanKeranjang() { 
-keranjang = []; 
-updateTabel(); 
-document.getElementById('nama-pemesan').value = ''; 
-document.getElementById('topping-input').value = ''; 
-document.getElementById('struk-section').style.display = 'none'; 
-}
-
-function cekMetodeBayar() {
-const metode = document.getElementById('metode-bayar').value;
-const sectionTunai = document.getElementById('section-tunai');
-if(metode !== 'Tunai') {
-sectionTunai.style.display = 'none';
-document.getElementById('uang-bayar').value = totalBersih;
-} else {
-sectionTunai.style.display = 'block';
-document.getElementById('uang-bayar').value = '';
-}
-hitungKembalian();
-}
-
-function hitungKembalian() {
-const metode = document.getElementById('metode-bayar').value;
-if(metode !== 'Tunai') {
-document.getElementById('txt-kembalian').innerText = 'Rp 0 (Nontunai)';
-return;
-}
-const uangBayar = parseInt(document.getElementById('uang-bayar').value) || 0;
-kembalian = uangBayar - totalBersih;
-document.getElementById('txt-kembalian').innerText = kembalian < 0 ? 'Uang Kurang!' : `Rp ${kembalian.toLocaleString('id-ID')}`;
-}
-
-function prosesTransaksi() {
-if(keranjang.length === 0) return alert('Keranjang belanja masih kosong!');
-const metode = document.getElementById('metode-bayar').value;
-const uangBayar = parseInt(document.getElementById('uang-bayar').value) || 0;
-const namaPemesan = document.getElementById('nama-pemesan').value.trim() || "Pelanggan Umum";
-
-const namaKasir = localStorage.getItem("kasir_nama");
-const passwordKasir = localStorage.getItem("kasir_pin");
-
-if(metode === 'Tunai' && uangBayar < totalBersih) return alert('Nominal uang tunai kurang!');
-
-const btnSelesai = document.getElementById('btn-selesai');
-btnSelesai.innerText = "Memproses Nota...";
-btnSelesai.disabled = true;
-
-let sekarang = new Date();
-let tanggal = String(sekarang.getDate()).padStart(2, '0');
-let bulan = String(sekarang.getMonth() + 1).padStart(2, '0');
-let tahun = sekarang.getFullYear();
-
-let hanyaTanggal = `${tanggal}/${bulan}/${tahun}`; 
-let hanyaWaktu = ThermalTime = sekarang.toLocaleTimeString('id-ID');
-let detailItems = keranjang.map(item => `${item.nama} x${item.qty}`).join(", ");
-
-let dataKeSheet = {
-tanggal: hanyaTanggal,
-waktu: hanyaWaktu,
-kasir: namaKasir,
-password: passwordKasir,
-pemesan: namaPemesan,
-items: detailItems,
-totalKotor: totalKotor,
-diskon: diskon,
-totalBersih: totalBersih,
-metode: metode
-};
-
-fetch(SPREADSHEET_URL, {
-method: "POST",
-body: JSON.stringify(dataKeSheet)
-})
-.then(response => response.json())
-.then(res => {
-if (res.result === "WRONG_PASSWORD") {
-alert("❌ Sesi kasir bermasalah. Silakan Logout dan Login kembali.");
-btnSelesai.innerText = "Selesai & Cetak Struk";
-btnSelesai.disabled = false;
-return;
-}
-
-if (res.result === "SUCCESS") {
-let nomorAntrianServer = res.antrian;
-
-let struk = `================================\n`;
-struk += `          KEDAI DONATTA         \n`;
-struk += `================================\n`;
-struk += `  NOMOR ANTRIAN :  [ ${nomorAntrianServer} ]  \n`;
-struk += `================================\n`;
-struk += `Tanggal : ${hanyaTanggal}\n`;
-struk += `Waktu   : ${hanyaWaktu}\n`;
-struk += `Kasir   : ${namaKasir}\n`;
-struk += `Pemesan : ${namaPemesan}\n`;
-struk += `Metode  : ${metode}\n`;
-struk += `--------------------------------\n`;
-
-keranjang.forEach(item => {
-struk += `${item.nama}\n`;
-struk += `  ${item.qty} x Rp ${item.harga.toLocaleString('id-ID')} = Rp ${item.subtotal.toLocaleString('id-ID')}\n`;
-});
-
-struk += `--------------------------------\n`;
-struk += `Total Kotor : Rp ${totalKotor.toLocaleString('id-ID')}\n`;
-struk += `Diskon      : Rp ${diskon.toLocaleString('id-ID')}\n`;
-struk += `TOTAL NET   : Rp ${totalBersih.toLocaleString('id-ID')}\n`;
-
-if(metode === 'Tunai') {
-struk += `Bayar Tunai : Rp ${uangBayar.toLocaleString('id-ID')}\n`;
-struk += `Kembalian   : Rp ${kembalian.toLocaleString('id-ID')}\n`;
-} else {
-struk += `Bayar       : LUNAS (${metode})\n`;
-}
-struk += `================================\n`;
-struk += `  Terima Kasih Atas Kunjungan Anda \n`;
-struk += `\n\n\n`;
-
-document.getElementById('struk-teks').innerText = struk;
-document.getElementById('struk-section').style.display = 'block';
-
-document.getElementById('nama-pemesan').value = '';
-
-btnSelesai.innerText = "Selesai & Cetak Struk";
-btnSelesai.disabled = false;
-}
-})
-.catch(error => {
-alert("Gagal mengirim data transaksi ke Google Sheets.");
-btnSelesai.innerText = "Selesai & Cetak Struk";
-btnSelesai.disabled = false;
-});
-}
-</script>
-</body>
-</html>
+if(!nama
