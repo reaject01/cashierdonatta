@@ -85,7 +85,7 @@ margin: 0;
 .btn-logout { background-color: #d63031; margin-top: 10px;}
 .btn-logout:hover { background-color: #c0392b; }
 
-/* ATURAN PRINT THERMAL */
+/* ATURAN PRINT THERMAL - DIBAIKI */
 @media print {
 body * {
 visibility: hidden;
@@ -149,9 +149,8 @@ margin: 0mm;
 <label for="varian">Ukuran Varian Donat:</label>
 <select id="varian"></select>
 
-<label for="topping-input">Topping Tersedia (Ketik Nama / Klik Dropdown):</label>
-<input type="text" id="topping-input" list="topping-list" placeholder="Ketik atau klik untuk pilih topping..." autocomplete="off" onfocus="this.value=''">
-<datalist id="topping-list"></datalist>
+<label for="topping">Topping Tersedia:</label>
+<select id="topping"></select>
 
 <label for="jumlah">Jumlah Qty:</label>
 <input type="number" id="jumlah" value="1" min="1">
@@ -228,9 +227,6 @@ let totalBersih = 0;
 let kembalian = 0;
 let configDiskon = { minimal: 0, persen: 0 };
 
-// Wadah global untuk menyimpan data objek topping asli hasil fetch dari Sheets
-window.dataToppingAsli = [];
-
 window.onload = function() {
 fetch(SPREADSHEET_URL)
 .then(response => response.json())
@@ -243,18 +239,10 @@ document.getElementById('btn-login').disabled = false;
 document.getElementById('loader-login').style.display = 'none';
 
 document.getElementById('varian').innerHTML = data.varian.map(v => `<option value="${v.nama}" data-harga="${v.harga}">Donat ${v.nama} (Rp ${v.harga.toLocaleString('id-ID')})</option>`).join('');
-
-// Bersihkan data harga dari karakter string jika ada, lalu simpan ke variabel array global
-window.dataToppingAsli = data.topping.map(t => {
-    let hargaBersih = typeof t.harga === 'string' ? parseInt(t.harga.replace(/[^0-9]/g, '')) : t.harga;
-    return { nama: t.nama, harga: hargaBersih };
-});
-
-// Render list opsi ke dalam datalist dropdown agar sinkron dengan input pengetikan
-document.getElementById('topping-list').innerHTML = window.dataToppingAsli.map(t => {
-    return `<option value="${t.nama}">Harga: +Rp ${t.harga.toLocaleString('id-ID')}</option>`;
+document.getElementById('topping').innerHTML = data.topping.map(t => {
+let hargaBersih = typeof t.harga === 'string' ? parseInt(t.harga.replace(/[^0-9]/g, '')) : t.harga;
+return `<option value="${t.nama}" data-harga="${hargaBersih}">${t.nama} (+Rp ${hargaBersih.toLocaleString('id-ID')})</option>`;
 }).join('');
-
 document.getElementById('metode-bayar').innerHTML = data.metode.map(m => `<option value="${m}">${m}</option>`).join('');
 
 configDiskon = data.diskonConfig;
@@ -328,23 +316,16 @@ document.getElementById('login-screen').style.display = 'block';
 
 function tambahPesanan() {
 const varSelect = document.getElementById('varian');
-const topInput = document.getElementById('topping-input').value.trim();
+const topSelect = document.getElementById('topping');
 const qty = parseInt(document.getElementById('jumlah').value);
 
-if(!topInput) return alert('Pilihan topping tidak boleh kosong!');
+if(!topSelect.value) return alert('Pilihan topping kosong!');
 if(qty < 1 || isNaN(qty)) return alert('Jumlah Qty tidak valid!');
-
-// Validasi teks input kasir dengan database topping asli yang terdaftar
-const toppingDitemukan = window.dataToppingAsli.find(t => t.nama.toLowerCase() === topInput.toLowerCase());
-
-if(!toppingDitemukan) {
-    return alert('Topping tidak ditemukan! Pastikan memilih topping yang sesuai dari rekomendasi dropdown.');
-}
 
 const namaVarian = varSelect.value;
 const hargaVarian = parseInt(varSelect.options[varSelect.selectedIndex].getAttribute('data-harga'));
-const namaTopping = toppingDitemukan.nama;
-const hargaTopping = toppingDitemukan.harga;
+const namaTopping = topSelect.value;
+const hargaTopping = parseInt(topSelect.options[topSelect.selectedIndex].getAttribute('data-harga'));
 
 const hargaSatuan = hargaVarian + hargaTopping;
 const subtotal = hargaSatuan * qty;
@@ -357,12 +338,10 @@ keranjang[indexSama].subtotal += subtotal;
 } else {
 keranjang.push({ nama: namaItem, harga: hargaSatuan, qty: qty, subtotal: subtotal });
 }
-
-// Mengosongkan kembali kolom input agar siap dipakai untuk orderan selanjutnya
-document.getElementById('topping-input').value = '';
 updateTabel();
 }
 
+/* FUNGSI UPDATE TABEL - SUDAH DIERADIKASI DARI BUG SINTAKS */
 function updateTabel() {
 const tbody = document.getElementById('tabel-keranjang');
 tbody.innerHTML = '';
@@ -399,7 +378,6 @@ function kosongkanKeranjang() {
 keranjang = []; 
 updateTabel(); 
 document.getElementById('nama-pemesan').value = ''; 
-document.getElementById('topping-input').value = ''; 
 document.getElementById('no-whatsapp').value = ''; 
 document.getElementById('struk-section').style.display = 'none'; 
 }
@@ -515,6 +493,7 @@ struk += `\n\n\n`;
 
 document.getElementById('struk-teks').innerText = struk;
 document.getElementById('struk-section').style.display = 'block';
+
 document.getElementById('nama-pemesan').value = '';
 
 btnSelesai.innerText = "Selesai & Cetak Struk";
