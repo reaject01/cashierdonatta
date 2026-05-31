@@ -102,6 +102,7 @@ margin: 0;
 padding: 0;
 background: white;
 }
+#struk-section button, #struk-section label, #struk-section input, #struk-section hr {
 #struk-section button {
 display: none !important;
 }
@@ -151,14 +152,12 @@ margin: 0mm;
 
 <label for="topping">Topping Tersedia:</label>
 <select id="topping"></select>
-<label for="topping-input">Topping Tersedia (Ketik untuk Mencari):</label>
-<input type="text" id="topping-input" list="topping-list" placeholder="Ketik nama topping...">
-<datalist id="topping-list"></datalist>
 
 <label for="jumlah">Jumlah Qty:</label>
 <input type="number" id="jumlah" value="1" min="1">
 
 <label for="nama-pemesan">Nama Pemesan / Pelanggan:</label>
+<input type="text" id="nama-pemesan" placeholder="Masukkan nama pelanggan">
 <input type="text" id="nama-pemesan" placeholder="Masukkan nama pelanggan (Contoh: Ahmad)">
 
 <button onclick="tambahPesanan()">+ Tambah ke Keranjang</button>
@@ -183,6 +182,7 @@ margin: 0mm;
 <h2>Total Pembayaran</h2>
 <div class="summary-line"><span>Total Kotor:</span> <span id="txt-total-kotor">Rp 0</span></div>
 <div class="summary-line" style="color: green; font-weight: bold;"><span>Diskon (<span id="label-diskon">Promo</span>):</span> <span id="txt-diskon">Rp 0</span></div>
+<div class="summary-line total-bold"><span>Total Bersih:</span> <span id="txt-total-Inter">Rp 0</span> <span>Total Bersih:</span> <span id="txt-total-bersih">Rp 0</span></div>
 <div class="summary-line total-bold"><span>Total Bersih:</span> <span id="txt-total-bersih">Rp 0</span></div>
 
 <label for="metode-bayar">Metode Pembayaran:</label>
@@ -198,10 +198,17 @@ margin: 0mm;
 
 <h3>Struk & Antrian:</h3>
 <div id="struk-section" style="display:none;">
+<h3>Pratinjau Struk & Antrian:</h3>
 
 <div style="background: #f1f2f6; padding: 15px; border-left: 4px solid #ff7675; margin-top: 15px;">
 <div class="struk-output" id="struk-teks"></div>
 </div>
+<button onclick="window.print()" style="margin-top: 15px; background-color:#3498db;">Print Struk Fisik</button>
+
+<hr style="border: 0; border-top: 1px dashed #ccc; margin: 15px 0;">
+<label for="no-whatsapp">Kirim Struk ke WhatsApp Pelanggan:</label>
+<input type="number" id="no-whatsapp" placeholder="Contoh: 08123456xxx">
+<button onclick="kirimKeWhatsApp()" style="background-color: #25D366; margin-bottom: 5px;">🟢 Kirim via WhatsApp</button>
 <button onclick="window.print()" style="margin-top: 15px; background-color:#3498db;">Print Struk Belanja</button>
 </div>
 
@@ -215,6 +222,7 @@ margin: 0mm;
 </div>
 
 <script>
+// PASTE URL EXEC APPS SCRIPT BARU ANDA DI SINI
 // MASUKKAN URL WEB APP APPS SCRIPT BARU ANDA DI SINI
 const SPREADSHEET_URL = "https://script.google.com/macros/s/AKfycbxW81p0um-PQwe_6oJM9LVnilveM324umptBsZvekxMr0A_yQZuPdpC3ylXPxUene3VTA/exec";
 
@@ -241,16 +249,7 @@ document.getElementById('varian').innerHTML = data.varian.map(v => `<option valu
 document.getElementById('topping').innerHTML = data.topping.map(t => {
 let hargaBersih = typeof t.harga === 'string' ? parseInt(t.harga.replace(/[^0-9]/g, '')) : t.harga;
 return `<option value="${t.nama}" data-harga="${hargaBersih}">${t.nama} (+Rp ${hargaBersih.toLocaleString('id-ID')})</option>`;
-
-// PERUBAHAN: Simpan array topping asli ke variabel global browser & isi ke dalam elemen datalist HTML
-window.dataToppingAsli = data.topping.map(t => {
-    let hargaBersih = typeof t.harga === 'string' ? parseInt(t.harga.replace(/[^0-9]/g, '')) : t.harga;
-    return { nama: t.nama, harga: hargaBersih };
-});
-document.getElementById('topping-list').innerHTML = window.dataToppingAsli.map(t => {
-    return `<option value="${t.nama}">Harga: +Rp ${t.harga.toLocaleString('id-ID')}</option>`;
 }).join('');
-
 document.getElementById('metode-bayar').innerHTML = data.metode.map(m => `<option value="${m}">${m}</option>`).join('');
 
 configDiskon = data.diskonConfig;
@@ -322,30 +321,18 @@ document.getElementById('login-screen').style.display = 'block';
 }
 }
 
-// PERUBAHAN: Penyesuaian total fungsi penambahan pesanan untuk membaca input teks autocomplete
 function tambahPesanan() {
 const varSelect = document.getElementById('varian');
 const topSelect = document.getElementById('topping');
-const topInput = document.getElementById('topping-input').value.trim();
 const qty = parseInt(document.getElementById('jumlah').value);
 
 if(!topSelect.value) return alert('Pilihan topping kosong!');
-if(!topInput) return alert('Pilihan topping tidak boleh kosong!');
 if(qty < 1 || isNaN(qty)) return alert('Jumlah Qty tidak valid!');
-
-// Cari nama topping yang diketik kasir di dalam dataset global browser
-const toppingDitemukan = window.dataToppingAsli.find(t => t.nama.toLowerCase() === topInput.toLowerCase());
-
-if(!toppingDitemukan) {
-    return alert('Topping tidak ditemukan! Pastikan mengetik dan memilih dari daftar rekomendasi.');
-}
 
 const namaVarian = varSelect.value;
 const hargaVarian = parseInt(varSelect.options[varSelect.selectedIndex].getAttribute('data-harga'));
 const namaTopping = topSelect.value;
 const hargaTopping = parseInt(topSelect.options[topSelect.selectedIndex].getAttribute('data-harga'));
-const namaTopping = toppingDitemukan.nama;
-const hargaTopping = toppingDitemukan.harga;
 
 const hargaSatuan = hargaVarian + hargaTopping;
 const subtotal = hargaSatuan * qty;
@@ -359,10 +346,6 @@ keranjang[indexSama].subtotal += subtotal;
 // Diperbaiki dari penulisan objek ganda sebelumnya
 keranjang.push({ nama: namaItem, harga: hargaSatuan, qty: qty, subtotal: subtotal });
 }
-
-// Reset kolom teks pencarian topping agar bersih kembali setelah masuk keranjang
-document.getElementById('topping-input').value = '';
-
 updateTabel();
 }
 
@@ -374,14 +357,6 @@ totalKotor = 0;
 keranjang.forEach((item, index) => {
 totalKotor += item.subtotal;
 tbody.innerHTML += `
-              <tr>
-                  <td>${item.nama}</td>
-                  <td>Rp ${item.harga.toLocaleString('id-ID')}</td>
-                  <td>${item.qty}</td>
-                  <td>Rp ${item.subtotal.toLocaleString('id-ID')}</td>
-                  <td><button style="padding:5px; margin:0;" class="btn-danger" onclick="hapusItem(${index})">Hapus</button></td>
-              </tr>
-          `;
                <tr>
                    <td>${item.nama}</td>
                    <td>Rp ${item.harga.toLocaleString('id-ID')}</td>
@@ -390,6 +365,14 @@ tbody.innerHTML += `
                    <td><button style="padding:5px; margin:0;" class="btn-danger" onclick="hapusItem(${index})">Hapus</button></td>
                </tr>
            `;
+              <tr>
+                  <td>${item.nama}</td>
+                  <td>Rp ${item.harga.toLocaleString('id-ID')}</td>
+                  <td>${item.qty}</td>
+                  <td>Rp ${item.subtotal.toLocaleString('id-ID')}</td>
+                  <td><button style="padding:5px; margin:0;" class="btn-danger" onclick="hapusItem(${index})">Hapus</button></td>
+              </tr>
+          `;
 });
 
 if (totalKotor >= configDiskon.minimal && configDiskon.minimal > 0) {
@@ -406,12 +389,11 @@ hitungKembalian();
 }
 
 function hapusItem(index) { keranjang.splice(index, 1); updateTabel(); }
-
 function kosongkanKeranjang() { 
 keranjang = []; 
 updateTabel(); 
 document.getElementById('nama-pemesan').value = ''; 
-document.getElementById('topping-input').value = ''; // PERUBAHAN: Reset input teks topping
+document.getElementById('no-whatsapp').value = ''; 
 document.getElementById('struk-section').style.display = 'none'; 
 }
 
@@ -457,8 +439,8 @@ btnSelesai.disabled = true;
 let sekarang = new Date();
 let tanggal = String(sekarang.getDate()).padStart(2, '0');
 let bulan = String(sekarang.getMonth() + 1).padStart(2, '0');
-let tahun = sekarang.getFullYear(); // Dibersihkan dari penulisan bug 'Clinical'
 let tahun = sekarang.getFullYear();
+let tahun = sekarang.getFullYear(); // Dibersihkan dari penulisan bug 'Clinical'
 
 let hanyaTanggal = `${tanggal}/${bulan}/${tahun}`; 
 let hanyaWaktu = sekarang.toLocaleTimeString('id-ID');
@@ -469,8 +451,8 @@ tanggal: hanyaTanggal,
 waktu: hanyaWaktu,
 kasir: namaKasir,
 password: passwordKasir,
-pemesan: namaPemesan, // Mengirim data Pemesan
 pemesan: namaPemesan,
+pemesan: namaPemesan, // Mengirim data Pemesan
 items: detailItems,
 totalKotor: totalKotor,
 diskon: diskon,
@@ -502,8 +484,8 @@ struk += `================================\n`;
 struk += `Tanggal : ${hanyaTanggal}\n`;
 struk += `Waktu   : ${hanyaWaktu}\n`;
 struk += `Kasir   : ${namaKasir}\n`;
-struk += `Pemesan : ${namaPemesan}\n`; // Menampilkan Nama di Struk Fisik
 struk += `Pemesan : ${namaPemesan}\n`;
+struk += `Pemesan : ${namaPemesan}\n`; // Menampilkan Nama di Struk Fisik
 struk += `Metode  : ${metode}\n`;
 struk += `--------------------------------\n`;
 
@@ -530,6 +512,7 @@ struk += `\n\n\n`;
 document.getElementById('struk-teks').innerText = struk;
 document.getElementById('struk-section').style.display = 'block';
 
+// Hapus nama pemesan agar tidak bentrok dengan orderan berikutnya
 // Otomatis bersihkan input nama pelanggan untuk order selanjutnya
 document.getElementById('nama-pemesan').value = '';
 
@@ -542,6 +525,31 @@ alert("Gagal mengirim data transaksi ke Google Sheets.");
 btnSelesai.innerText = "Selesai & Cetak Struk";
 btnSelesai.disabled = false;
 });
+}
+
+// FUNGSI UTAMA UNTUK MENGIRIM STRUK VIA WHATSAPP WEB LINK
+function kirimKeWhatsApp() {
+const noHpInput = document.getElementById('no-whatsapp').value.trim();
+let strukTeks = document.getElementById('struk-teks').innerText;
+
+if (!noHpInput) {
+return alert("Silakan masukkan nomor WhatsApp pelanggan terlebih dahulu!");
+}
+
+// Konversi format nomor telepon awalan 08xxx menjadi format internasional 628xxx
+let noHpFormatted = noHpInput;
+if (noHpFormatted.startsWith("0")) {
+noHpFormatted = "62" + noHpFormatted.slice(1);
+}
+
+// Melakukan URL encoding teks struk agar simbol baris baru (\n) dan spasi aman dibaca oleh browser
+const urlText = encodeURIComponent(strukTeks);
+
+// Membuat tautan resmi kirim pesan WhatsApp tanpa harus save nomor
+const waLink = `https://wa.me/${noHpFormatted}?text=${urlText}`;
+
+// Buka WhatsApp di tab / jendela baru
+window.open(waLink, '_blank');
 }
 </script>
 </body>
