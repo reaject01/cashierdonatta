@@ -550,8 +550,8 @@ struk += `  ${item.qty} x Rp ${item.harga.toLocaleString('id-ID')} = Rp ${item.s
 
 struk += `--------------------------------\n`;
 struk += `SubTotal : Rp ${totalKotor.toLocaleString('id-ID')}\n`;
-struk += `Diskon      : Rp ${diskon.toLocaleString('id-ID')}\n`;
-struk += `TOTAL   : Rp ${totalBersih.toLocaleString('id-ID')}\n`;
+struk += `Diskon   : Rp ${diskon.toLocaleString('id-ID')}\n`;
+struk += `TOTAL    : Rp ${totalBersih.toLocaleString('id-ID')}\n`;
 
 if(metode === 'Tunai') {
 struk += `Bayar Tunai : Rp ${uangBayar.toLocaleString('id-ID')}\n`;
@@ -560,7 +560,7 @@ struk += `Kembalian   : Rp ${kembalian.toLocaleString('id-ID')}\n`;
 struk += `Bayar       : LUNAS (${metode})\n`;
 }
 struk += `================================\n`;
-struk += `  Terima Kasih Atas Kunjungan Anda \n`;
+struk += ` Donut worry be happy bareng Donatta, see you next order ya! \n`;
 struk += `\n\n\n`;
 
 document.getElementById('struk-teks').innerText = struk;
