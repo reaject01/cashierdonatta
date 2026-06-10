@@ -549,9 +549,9 @@ struk += `  ${item.qty} x Rp ${item.harga.toLocaleString('id-ID')} = Rp ${item.s
 });
 
 struk += `--------------------------------\n`;
-struk += `Total Kotor : Rp ${totalKotor.toLocaleString('id-ID')}\n`;
+struk += `SubTotal : Rp ${totalKotor.toLocaleString('id-ID')}\n`;
 struk += `Diskon      : Rp ${diskon.toLocaleString('id-ID')}\n`;
-struk += `TOTAL NET   : Rp ${totalBersih.toLocaleString('id-ID')}\n`;
+struk += `TOTAL   : Rp ${totalBersih.toLocaleString('id-ID')}\n`;
 
 if(metode === 'Tunai') {
 struk += `Bayar Tunai : Rp ${uangBayar.toLocaleString('id-ID')}\n`;
