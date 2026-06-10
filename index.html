@@ -190,7 +190,17 @@ margin: 0mm;
 <div class="card">
 <h2>Total Pembayaran</h2>
 <div class="summary-line"><span>Total Kotor:</span> <span id="txt-total-kotor">Rp 0</span></div>
-<div class="summary-line" style="color: green; font-weight: bold;"><span>Diskon (<span id="label-diskon">Promo</span>):</span> <span id="txt-diskon">Rp 0</span></div>
+
+<!-- BARIS DISKON 1: Diskon Khusus Premium (Kelipatan) -->
+<div class="summary-line" style="color: #2ecc71; font-weight: bold;">
+    <span>Diskon Khusus Premium:</span> <span id="txt-diskon-premium">Rp 0</span>
+</div>
+
+<!-- BARIS DISKON 2: Diskon Kedai (Dari Spreadsheet) -->
+<div class="summary-line" style="color: green; font-weight: bold;">
+    <span>Diskon Kedai (<span id="label-diskon">Promo</span>):</span> <span id="txt-diskon-kedai">Rp 0</span>
+</div>
+
 <div class="summary-line total-bold"><span>Total Bersih:</span> <span id="txt-total-bersih">Rp 0</span></div>
 
 <label for="metode-bayar">Metode Pembayaran:</label>
@@ -391,14 +401,14 @@ function updateTabel() {
     keranjang.forEach((item, index) => {
         totalKotor += item.subtotal;
         tbody.innerHTML += `
-            <tr>
-                <td>${item.nama}</td>
-                <td>Rp ${item.harga.toLocaleString('id-ID')}</td>
-                <td>${item.qty}</td>
-                <td>Rp ${item.subtotal.toLocaleString('id-ID')}</td>
-                <td><button style="padding:5px; margin:0;" class="btn-danger" onclick="hapusItem(${index})">Hapus</button></td>
-            </tr>
-        `;
+               <tr>
+                   <td>${item.nama}</td>
+                   <td>Rp ${item.harga.toLocaleString('id-ID')}</td>
+                   <td>${item.qty}</td>
+                   <td>Rp ${item.subtotal.toLocaleString('id-ID')}</td>
+                   <td><button style="padding:5px; margin:0;" class="btn-danger" onclick="hapusItem(${index})">Hapus</button></td>
+               </tr>
+           `;
 
         // LOGIKA PENGECEKAN: Apakah item mengandung kata "Besar" dan "Premium"?
         let namaItemLower = item.nama.toLowerCase();
@@ -407,34 +417,29 @@ function updateTabel() {
         }
     });
 
-    // 1. HITUNG DISKON UTAMA (Dari Google Sheets berdasarkan minimal belanja)
+    // 1. HITUNG DISKON KEDAI (Dari Google Sheets berdasarkan minimal belanja)
+    let diskonKedai = 0;
     if (totalKotor >= configDiskon.minimal && configDiskon.minimal > 0) {
-        diskon = totalKotor * (configDiskon.persen / 100);
-    } else {
-        diskon = 0;
+        diskonKedai = totalKotor * (configDiskon.persen / 100);
     }
 
-    // 2. TAMBAHAN LOGIKA DISKON KHUSUS KELIPATAN
-    // Math.floor(jumlah / 6) digunakan untuk mencari berapa kali kelipatan 6 yang dibeli
-    let diskonKhusus = 0;
+    // 2. HITUNG DISKON KHUSUS PREMIUM (Berlaku Kelipatan 6)
+    let diskonPremium = 0;
     if (jumlahDonatBesarPremium >= 6) {
         let kelipatan = Math.floor(jumlahDonatBesarPremium / 6); 
-        diskonKhusus = kelipatan * 1000; // Dikali Rp 1.000 per kelipatan
-        diskon += diskonKhusus;          // Digabungkan ke total diskon utama
+        diskonPremium = kelipatan * 1000; // Rp 1.000 per kelipatan 6 pcs
     }
 
-    // Hitung Total Bersih setelah dikurangi semua diskon
+    // Gabungkan kedua diskon untuk mengurangi total kotor
+    diskon = diskonKedai + diskonPremium;
     totalBersih = totalKotor - diskon;
 
-    // Perbarui Tampilan di Sisi Kanan Aplikasi
+    // Perbarui Tampilan Angka di Layar Aplikasi
     document.getElementById('txt-total-kotor').innerText = `Rp ${totalKotor.toLocaleString('id-ID')}`;
     
-    // Beri keterangan tambahan di label diskon jika diskon kelipatan aktif
-    if (diskonKhusus > 0) {
-        document.getElementById('txt-diskon').innerText = `Rp ${diskon.toLocaleString('id-ID')} (Termasuk Promo Kelipatan 6 Besar + Premium)`;
-    } else {
-        document.getElementById('txt-diskon').innerText = `Rp ${diskon.toLocaleString('id-ID')}`;
-    }
+    // Tampilkan nilai masing-masing diskon secara terpisah
+    document.getElementById('txt-diskon-premium').innerText = `Rp ${diskonPremium.toLocaleString('id-ID')}`;
+    document.getElementById('txt-diskon-kedai').innerText = `Rp ${diskonKedai.toLocaleString('id-ID')}`;
     
     document.getElementById('txt-total-bersih').innerText = `Rp ${totalBersih.toLocaleString('id-ID')}`;
     hitungKembalian();
