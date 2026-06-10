@@ -382,34 +382,62 @@ filterTopping();
 }
 
 function updateTabel() {
-const tbody = document.getElementById('tabel-keranjang');
-tbody.innerHTML = '';
-totalKotor = 0;
+    const tbody = document.getElementById('tabel-keranjang');
+    tbody.innerHTML = '';
+    totalKotor = 0;
 
-keranjang.forEach((item, index) => {
-totalKotor += item.subtotal;
-tbody.innerHTML += `
-               <tr>
-                   <td>${item.nama}</td>
-                   <td>Rp ${item.harga.toLocaleString('id-ID')}</td>
-                   <td>${item.qty}</td>
-                   <td>Rp ${item.subtotal.toLocaleString('id-ID')}</td>
-                   <td><button style="padding:5px; margin:0;" class="btn-danger" onclick="hapusItem(${index})">Hapus</button></td>
-               </tr>
-           `;
-});
+    let jumlahDonatBesarPremium = 0; // Menghitung total qty donat besar premium
 
-if (totalKotor >= configDiskon.minimal && configDiskon.minimal > 0) {
-diskon = totalKotor * (configDiskon.persen / 100);
-} else {
-diskon = 0;
-}
-totalBersih = totalKotor - diskon;
+    keranjang.forEach((item, index) => {
+        totalKotor += item.subtotal;
+        tbody.innerHTML += `
+            <tr>
+                <td>${item.nama}</td>
+                <td>Rp ${item.harga.toLocaleString('id-ID')}</td>
+                <td>${item.qty}</td>
+                <td>Rp ${item.subtotal.toLocaleString('id-ID')}</td>
+                <td><button style="padding:5px; margin:0;" class="btn-danger" onclick="hapusItem(${index})">Hapus</button></td>
+            </tr>
+        `;
 
-document.getElementById('txt-total-kotor').innerText = `Rp ${totalKotor.toLocaleString('id-ID')}`;
-document.getElementById('txt-diskon').innerText = `Rp ${diskon.toLocaleString('id-ID')}`;
-document.getElementById('txt-total-bersih').innerText = `Rp ${totalBersih.toLocaleString('id-ID')}`;
-hitungKembalian();
+        // LOGIKA PENGECEKAN: Apakah item mengandung kata "Besar" dan "Premium"?
+        let namaItemLower = item.nama.toLowerCase();
+        if (namaItemLower.includes("besar") && namaItemLower.includes("premium")) {
+            jumlahDonatBesarPremium += item.qty; 
+        }
+    });
+
+    // 1. HITUNG DISKON UTAMA (Dari Google Sheets berdasarkan minimal belanja)
+    if (totalKotor >= configDiskon.minimal && configDiskon.minimal > 0) {
+        diskon = totalKotor * (configDiskon.persen / 100);
+    } else {
+        diskon = 0;
+    }
+
+    // 2. TAMBAHAN LOGIKA DISKON KHUSUS KELIPATAN
+    // Math.floor(jumlah / 6) digunakan untuk mencari berapa kali kelipatan 6 yang dibeli
+    let diskonKhusus = 0;
+    if (jumlahDonatBesarPremium >= 6) {
+        let kelipatan = Math.floor(jumlahDonatBesarPremium / 6); 
+        diskonKhusus = kelipatan * 1000; // Dikali Rp 1.000 per kelipatan
+        diskon += diskonKhusus;          // Digabungkan ke total diskon utama
+    }
+
+    // Hitung Total Bersih setelah dikurangi semua diskon
+    totalBersih = totalKotor - diskon;
+
+    // Perbarui Tampilan di Sisi Kanan Aplikasi
+    document.getElementById('txt-total-kotor').innerText = `Rp ${totalKotor.toLocaleString('id-ID')}`;
+    
+    // Beri keterangan tambahan di label diskon jika diskon kelipatan aktif
+    if (diskonKhusus > 0) {
+        document.getElementById('txt-diskon').innerText = `Rp ${diskon.toLocaleString('id-ID')} (Termasuk Promo Kelipatan 6 Besar + Premium)`;
+    } else {
+        document.getElementById('txt-diskon').innerText = `Rp ${diskon.toLocaleString('id-ID')}`;
+    }
+    
+    document.getElementById('txt-total-bersih').innerText = `Rp ${totalBersih.toLocaleString('id-ID')}`;
+    hitungKembalian();
 }
 
 function hapusItem(index) { keranjang.splice(index, 1); updateTabel(); }
